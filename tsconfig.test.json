@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": ".test-out",
+    "rootDir": "."
+  },
+  "include": [
+    "lib/formula.ts",
+    "lib/types.ts",
+    "lib/exercises.ts",
+    "lib/check.ts",
+    "lib/functions.ts",
+    "lib/courses.ts",
+    "tests/**/*.ts"
+  ]
+}
