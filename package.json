@@ -10,6 +10,7 @@
     "test": "tsc -p tsconfig.test.json && node .test-out/tests/run-tests.js"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
