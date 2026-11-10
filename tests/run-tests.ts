@@ -165,6 +165,70 @@ if (sumif) {
   }).ok);
 }
 
+// ---- Fungsi keuangan dan SUMPRODUCT ----
+const near = (v: unknown, want: number, tol = 0.01) => typeof v === 'number' && Math.abs(v - want) <= tol;
+t('PMT cicilan 10 juta 1% 12 bulan', near(num('=PMT(1%,12,-10000000)'), 888487.89, 0.02));
+t('PMT bunga 0', near(num('=PMT(0,10,-1000)'), 100));
+t('PMT dengan nilai akhir', near(num('=PMT(0.01,12,0,10000000)'), -788487.89 + 0.0, 100000));
+t('FV menabung 24 bulan', near(num('=FV(0.5%,24,-1000000)'), 25431955.2, 1));
+t('PV 12 cicilan', near(num('=PV(1%,12,-1000000)'), 11255077.47, 1));
+t('NPV dua arus', near(num('=NPV(10%,100,200)'), 256.198, 0.001));
+t('NPV dari rentang', near(num('=NPV(0.1,A1:A2)', { A1: '100', A2: '200' }), 256.198, 0.001));
+t('IRR sederhana', near(num('=IRR(A1:A2)', { A1: '-100', A2: '110' }), 0.1, 1e-6));
+t('IRR beberapa periode', near(num('=IRR(A1:A4)', { A1: '-1000', A2: '300', A3: '400', A4: '500' }), 0.0889, 0.0005));
+t('IRR tanpa tanda berganti = #NUM!', num('=IRR(A1:A2)', { A1: '100', A2: '110' }) === '#NUM!');
+t('SUMPRODUCT dua rentang', near(num('=SUMPRODUCT(A1:A3,B1:B3)', { A1: '2', A2: '3', A3: '4', B1: '10', B2: '20', B3: '30' }), 200));
+t('SUMPRODUCT ukuran beda = #VALUE!', num('=SUMPRODUCT(A1:A3,B1:B2)', { A1: '1', A2: '1', A3: '1', B1: '1', B2: '1' }) === '#VALUE!');
+t('SUMPRODUCT dengan syarat', near(num('=SUMPRODUCT((A1:A3="x")*B1:B3)', { A1: 'x', A2: 'y', A3: 'x', B1: '5', B2: '6', B3: '7' }), 12));
+t('IFS cabang tengah', num('=IFS(A1>=90,"A",A1>=75,"B",TRUE,"C")', { A1: '80' }) === 'B');
+t('IFS tanpa cocok = #N/A', num('=IFS(A1>100,"x")', { A1: '5' }) === '#N/A');
+
+// ---- Fungsi bisnis tambahan ----
+const dekat = (x: unknown, y: number, eps = 1e-6) => typeof x === "number" && Math.abs(x - y) < eps;
+t('SLN', num('=SLN(120000000,12000000,5)') === 21600000);
+t('SLN umur nol', num('=SLN(100,10,0)') === '#DIV/0!');
+t('SYD tahun 1', num('=SYD(120000000,12000000,5,1)') === 36000000);
+t('SYD tahun 5', num('=SYD(120000000,12000000,5,5)') === 7200000);
+t('SYD periode di luar umur', num('=SYD(100,10,5,6)') === '#NUM!');
+t('DDB tahun 1', dekat(num('=DDB(120000000,12000000,5,1)'), 48000000));
+t('DDB tahun 2', dekat(num('=DDB(120000000,12000000,5,2)'), 28800000));
+t('DDB tahun 5 dibatasi nilai sisa', dekat(num('=DDB(120000000,12000000,5,5)'), 3552000, 1e-3));
+t('NPER bunga 1%', dekat(num('=NPER(0.01,-3500000,40000000)'), 12.2, 0.1));
+t('NPER tanpa bunga', num('=NPER(0,-100,1000)') === 10);
+t('NPER cicilan tak menutup bunga', num('=NPER(0.01,-100,40000)') === '#NUM!');
+t('CEILING', num('=CEILING(31590,500)') === 32000);
+t('CEILING sudah kelipatan', num('=CEILING(32000,500)') === 32000);
+t('CEILING kelipatan nol', num('=CEILING(10,0)') === 0);
+t('FLOOR', num('=FLOOR(28845,1000)') === 28000);
+t('FLOOR kelipatan nol', num('=FLOOR(5,0)') === '#DIV/0!');
+const nilai = { A1: '5', A2: '9', A3: '9', A4: '1' };
+t('RANK terbesar', num('=RANK(9,A1:A4)', nilai) === 1);
+t('RANK kembar sama peringkat', num('=RANK(5,A1:A4)', nilai) === 3);
+t('RANK menaik', num('=RANK(1,A1:A4,1)', nilai) === 1);
+t('RANK angka tak ada', num('=RANK(7,A1:A4)', nilai) === '#N/A');
+t('LARGE ke-2 (kembar dihitung)', num('=LARGE(A1:A4,2)', nilai) === 9);
+t('LARGE ke-3', num('=LARGE(A1:A4,3)', nilai) === 5);
+t('SMALL ke-1', num('=SMALL(A1:A4,1)', nilai) === 1);
+t('LARGE k di luar rentang', num('=LARGE(A1:A4,5)', nilai) === '#NUM!');
+const kat = { A1: 'X', A2: 'Y', A3: 'X', A4: 'Y', B1: '10', B2: '4', B3: '30', B4: '8' };
+t('MAXIFS', num('=MAXIFS(B1:B4,A1:A4,"X")', kat) === 30);
+t('MINIFS', num('=MINIFS(B1:B4,A1:A4,"Y")', kat) === 4);
+t('MAXIFS dua syarat', num('=MAXIFS(B1:B4,A1:A4,"X",B1:B4,"<20")', kat) === 10);
+t('MAXIFS tak ada yang cocok', num('=MAXIFS(B1:B4,A1:A4,"Z")', kat) === 0);
+t('AVERAGEIFS', num('=AVERAGEIFS(B1:B4,A1:A4,"X")', kat) === 20);
+t('AVERAGEIFS tak ada yang cocok', num('=AVERAGEIFS(B1:B4,A1:A4,"Z")', kat) === '#DIV/0!');
+t('SUMIFS tetap jalan', num('=SUMIFS(B1:B4,A1:A4,"Y")', kat) === 12);
+t('COUNTIFS tetap jalan', num('=COUNTIFS(A1:A4,"X",B1:B4,">5")', kat) === 2);
+t('SUBSTITUTE semua', num('=SUBSTITUTE("0812-3456-7890","-","")') === '081234567890');
+t('SUBSTITUTE ke-2', num('=SUBSTITUTE("a-b-c","-","+",2)') === 'a-b+c');
+t('SUBSTITUTE bedakan huruf besar', num('=SUBSTITUTE("Aa","a","x")') === 'Ax');
+t('CHOOSE', num('=CHOOSE(2,"A","B","C")') === 'B');
+t('CHOOSE di luar daftar', num('=CHOOSE(4,"A","B","C")') === '#VALUE!');
+t('ISNUMBER angka', num('=ISNUMBER(A1)', { A1: '5' }) === true);
+t('ISNUMBER teks', num('=ISNUMBER(A1)', { A1: 'lima' }) === false);
+t('ISBLANK kosong', num('=ISBLANK(A1)', {}) === true);
+t('ISBLANK nol bukan kosong', num('=ISBLANK(A1)', { A1: '0' }) === false);
+
 // ---- Konten: kursus, kuis, ensiklopedia, solusi acuan ----
 const slugs = new Set(EXERCISES.map((e) => e.slug));
 t('slug soal unik', slugs.size === EXERCISES.length);

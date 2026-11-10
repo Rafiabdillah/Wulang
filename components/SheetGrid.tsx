@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
+import type { CSSProperties } from 'react';
 import type { CellResult } from '../lib/check';
 import { addrOf, evaluateSheet, formatValue, isErrorValue, numToCol } from '../lib/formula';
 import type { Exercise } from '../lib/types';
@@ -54,7 +55,11 @@ export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, o
         <span className="fbar-raw">{barRaw}</span>
       </div>
       <div className="sheet-scroll">
-        <table className="grid" aria-label={`Lembar kerja ${ex.title}`}>
+        <table
+          className="grid"
+          aria-label={`Lembar kerja ${ex.title}`}
+          style={ex.nCols > 5 ? ({ '--cw': '5.25rem' } as CSSProperties) : undefined}
+        >
           <thead>
             <tr>
               <th className="corner" />
@@ -139,6 +144,7 @@ export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, o
           </tbody>
         </table>
       </div>
+      {ex.nCols > 5 && <p className="scroll-hint">Tabel lebar: geser ke kanan untuk melihat kolom lainnya.</p>}
     </div>
   );
 }

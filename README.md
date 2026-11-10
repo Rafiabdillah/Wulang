@@ -19,7 +19,7 @@ Butuh Node 18.18 atau lebih baru.
 
 | Bagian | Lokasi |
 | --- | --- |
-| Mesin formula (sekitar 40 fungsi) | `lib/formula.ts` |
+| Mesin formula (63 fungsi) | `lib/formula.ts` |
 | Pengecek jawaban per sel | `lib/check.ts` |
 | Soal latihan dan tantangan | `lib/exercises.ts` |
 | Kursus dan kuis | `lib/courses.ts` |
@@ -54,4 +54,4 @@ Fungsi baru ditambahkan di `FUNCS` pada `lib/formula.ts`, lalu didokumentasikan 
 
 ## Status verifikasi
 
-Sudah diuji: 287 uji otomatis (mesin formula, semua soal, kursus, ensiklopedia) dan uji di Chromium untuk alur soal, XP, draf, kuis, profil, peringkat, ensiklopedia, serta tampilan 390 px. `npm install` dan `next build` belum bisa dijalankan saat proyek ditulis, jadi build pertama di komputermu adalah uji terakhir.
+Sudah diuji: 820 uji otomatis (mesin formula, semua soal, kursus, ensiklopedia) dan uji di Chromium untuk alur soal, XP, draf, kuis, profil, peringkat, ensiklopedia, serta tampilan 390 px. `npm install` dan `next build` belum bisa dijalankan saat proyek ditulis, jadi build pertama di komputermu adalah uji terakhir.

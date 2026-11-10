@@ -1,5 +1,10 @@
 import { addrOf, evaluateSheet, expandRange, isErrorValue, parseAddr } from './formula';
 import type { Value } from './formula';
+import { KEUANGAN } from './bisnis/keuangan';
+import { PAJAK } from './bisnis/pajak';
+import { PENJUALAN } from './bisnis/penjualan';
+import { SDM } from './bisnis/sdm';
+import { TAMBAHAN } from './bisnis/tambahan';
 import type { Exercise, ExerciseDef, Kind, Level, Scalar } from './types';
 
 const DEFAULT_XP: Record<Level, number> = { Mudah: 10, Sedang: 15, Sulit: 25 };
@@ -775,7 +780,8 @@ const DEFS: ExerciseDef[] = [
   },
 ];
 
-export const EXERCISES: Exercise[] = DEFS.map(build);
+// Soal dasar ditulis di sini. Soal kasus bisnis ada di lib/bisnis/.
+export const EXERCISES: Exercise[] = [...DEFS, ...KEUANGAN, ...PAJAK, ...PENJUALAN, ...SDM, ...TAMBAHAN].map(build);
 
 export function getExercise(slug: string): Exercise | undefined {
   return EXERCISES.find((e) => e.slug === slug);

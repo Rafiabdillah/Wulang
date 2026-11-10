@@ -9,7 +9,7 @@ export default function KursusPage() {
     <>
       <header className="page-head">
         <h1>Kursus</h1>
-        <p className="lead">Lima kursus berurutan, dari sel pertama sampai kasus akuntansi dan pajak. Semuanya gratis.</p>
+        <p className="lead">{COURSES.length} kursus berurutan, dari sel pertama sampai kasus nyata di keuangan, pajak, penjualan, dan SDM. Semuanya gratis.</p>
       </header>
       <ol className="path big">
         {COURSES.map((c, i) => (

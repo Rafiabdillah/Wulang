@@ -367,6 +367,47 @@ function scalar(a: Arg): Value {
 
 // ---------- Evaluator ----------
 
+function binScalar(op: string, l: Value, r: Value): Value {
+  if (isErr(l)) return l;
+  if (isErr(r)) return r;
+  switch (op) {
+    case '&':
+      return str(l) + str(r);
+    case '=':
+      return cmp(l, r) === 0;
+    case '<>':
+      return cmp(l, r) !== 0;
+    case '<':
+      return cmp(l, r) < 0;
+    case '>':
+      return cmp(l, r) > 0;
+    case '<=':
+      return cmp(l, r) <= 0;
+    case '>=':
+      return cmp(l, r) >= 0;
+  }
+  const a = num(l);
+  const b = num(r);
+  if (isErr(a)) return a;
+  if (isErr(b)) return b;
+  switch (op) {
+    case '+':
+      return a + b;
+    case '-':
+      return a - b;
+    case '*':
+      return a * b;
+    case '/':
+      return b === 0 ? E('#DIV/0!') : a / b;
+    case '^': {
+      const p = Math.pow(a, b);
+      return Number.isFinite(p) ? p : E('#NUM!');
+    }
+  }
+  return E('#ERROR!');
+}
+
+
 interface Ctx {
   get(addr: string): Value;
 }
@@ -410,45 +451,29 @@ function ev(n: Node, c: Ctx): Arg {
       return isErr(x) ? x : x / 100;
     }
     case 'bin': {
-      const l = scalar(ev(n.l, c));
-      const r = scalar(ev(n.r, c));
-      if (isErr(l)) return l;
-      if (isErr(r)) return r;
-      switch (n.op) {
-        case '&':
-          return str(l) + str(r);
-        case '=':
-          return cmp(l, r) === 0;
-        case '<>':
-          return cmp(l, r) !== 0;
-        case '<':
-          return cmp(l, r) < 0;
-        case '>':
-          return cmp(l, r) > 0;
-        case '<=':
-          return cmp(l, r) <= 0;
-        case '>=':
-          return cmp(l, r) >= 0;
+      const la = ev(n.l, c);
+      const ra = ev(n.r, c);
+      if (isErr(la)) return la;
+      if (isErr(ra)) return ra;
+      const lArr = isRange(la) && (la.rows.length > 1 || la.rows[0].length > 1);
+      const rArr = isRange(ra) && (ra.rows.length > 1 || ra.rows[0].length > 1);
+      if (!lArr && !rArr) return binScalar(n.op, scalar(la), scalar(ra));
+      // Operasi pada rentang berlaku per sel. Dipakai terutama di dalam SUMPRODUCT.
+      const shape = (lArr ? la : ra) as RangeVal;
+      const nr = shape.rows.length;
+      const nc = shape.rows[0].length;
+      if (lArr && rArr) {
+        const rr = ra as RangeVal;
+        if (rr.rows.length !== nr || rr.rows[0].length !== nc) return E('#VALUE!');
       }
-      const a = num(l);
-      const b = num(r);
-      if (isErr(a)) return a;
-      if (isErr(b)) return b;
-      switch (n.op) {
-        case '+':
-          return a + b;
-        case '-':
-          return a - b;
-        case '*':
-          return a * b;
-        case '/':
-          return b === 0 ? E('#DIV/0!') : a / b;
-        case '^': {
-          const p = Math.pow(a, b);
-          return Number.isFinite(p) ? p : E('#NUM!');
-        }
+      const at = (a: Arg, arr: boolean, i: number, j: number): Value => (arr ? (a as RangeVal).rows[i][j] : scalar(a));
+      const rows: Value[][] = [];
+      for (let i = 0; i < nr; i++) {
+        const row: Value[] = [];
+        for (let j = 0; j < nc; j++) row.push(binScalar(n.op, at(la, lArr, i, j), at(ra, rArr, i, j)));
+        rows.push(row);
       }
-      return E('#ERROR!');
+      return { kind: 'range', rows };
     }
     case 'call': {
       const fn = FUNCS[n.name.toUpperCase()];
@@ -589,11 +614,11 @@ function ifFamily(
   return count === 0 ? E('#DIV/0!') : total / count;
 }
 
-function ifsFamily(args: Node[], c: Ctx, mode: 'sum' | 'count'): Value {
-  const first = mode === 'sum' ? 1 : 0;
+function ifsFamily(args: Node[], c: Ctx, mode: 'sum' | 'count' | 'avg' | 'max' | 'min'): Value {
+  const first = mode === 'count' ? 0 : 1;
   if (args.length < first + 2 || (args.length - first) % 2 !== 0) return E('#ERROR!');
   let sumVals: Value[] = [];
-  if (mode === 'sum') {
+  if (mode !== 'count') {
     const sr = rangeOf(args[0], c);
     if (isErr(sr)) return sr;
     sumVals = flat(sr);
@@ -608,19 +633,27 @@ function ifsFamily(args: Node[], c: Ctx, mode: 'sum' | 'count'): Value {
   }
   const size = pairs[0].cells.length;
   if (pairs.some((p) => p.cells.length !== size)) return E('#VALUE!');
-  if (mode === 'sum' && sumVals.length !== size) return E('#VALUE!');
+  if (mode !== 'count' && sumVals.length !== size) return E('#VALUE!');
   let total = 0;
   let count = 0;
+  let best: number | null = null;
   for (let i = 0; i < size; i++) {
     if (!pairs.every((p) => p.test(p.cells[i]))) continue;
-    count++;
-    if (mode === 'sum') {
-      const v = sumVals[i];
-      if (isErr(v)) return v;
-      if (typeof v === 'number') total += v;
+    if (mode === 'count') {
+      count++;
+      continue;
     }
+    const v = sumVals[i];
+    if (isErr(v)) return v;
+    if (typeof v !== 'number') continue;
+    count++;
+    total += v;
+    if (best === null || (mode === 'max' && v > best) || (mode === 'min' && v < best)) best = v;
   }
-  return mode === 'sum' ? total : count;
+  if (mode === 'count') return count;
+  if (mode === 'sum') return total;
+  if (mode === 'avg') return count === 0 ? E('#DIV/0!') : total / count;
+  return best === null ? 0 : best;
 }
 
 function oneDim(r: RangeVal): Value[] | null {
@@ -980,6 +1013,251 @@ const FUNCS: Record<string, Fn> = {
     const i = keys.findIndex((x) => !isErr(x) && x !== null && lv !== null && cmp(x, lv) === 0);
     if (i >= 0) return outs[i] === null ? 0 : outs[i];
     return a[3] ? sc(a[3], c) : E('#N/A');
+  },
+  SUMPRODUCT: (a, c) => {
+    if (a.length < 1) return E('#ERROR!');
+    const arrays: number[][] = [];
+    for (const n of a) {
+      const r = rangeOf(n, c);
+      if (isErr(r)) return r;
+      // Sel teks atau kosong dihitung 0, seperti di Excel.
+      arrays.push(flat(r).map((v) => (typeof v === 'number' ? v : 0)));
+    }
+    const len = arrays[0].length;
+    if (arrays.some((x) => x.length !== len)) return E('#VALUE!');
+    let total = 0;
+    for (let i = 0; i < len; i++) total += arrays.reduce((p, x) => p * x[i], 1);
+    return total;
+  },
+  IFS: (a, c) => {
+    if (a.length < 2 || a.length % 2 !== 0) return E('#ERROR!');
+    for (let i = 0; i < a.length; i += 2) {
+      const t = toBool(sc(a[i], c));
+      if (isErr(t)) return t;
+      if (t) return sc(a[i + 1], c);
+    }
+    return E('#N/A');
+  },
+  PMT: (a, c) => {
+    const bad = needArgs(a, 3, 5);
+    if (bad) return bad;
+    const rate = numAt(a, 0, c);
+    const n = numAt(a, 1, c);
+    const pv = numAt(a, 2, c);
+    const fv = numAt(a, 3, c, 0);
+    const type = numAt(a, 4, c, 0);
+    for (const x of [rate, n, pv, fv, type]) if (isErr(x)) return x;
+    const [r, np, p0, f0, t] = [rate, n, pv, fv, type] as number[];
+    if (np === 0) return E('#NUM!');
+    if (r === 0) return -(p0 + f0) / np;
+    const g = Math.pow(1 + r, np);
+    return -(r * (p0 * g + f0)) / ((1 + r * (t ? 1 : 0)) * (g - 1));
+  },
+  FV: (a, c) => {
+    const bad = needArgs(a, 3, 5);
+    if (bad) return bad;
+    const x = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c), numAt(a, 3, c, 0), numAt(a, 4, c, 0)];
+    for (const v of x) if (isErr(v)) return v;
+    const [r, np, pm, p0, t] = x as number[];
+    if (r === 0) return -(p0 + pm * np);
+    const g = Math.pow(1 + r, np);
+    return -(p0 * g + (pm * (1 + r * (t ? 1 : 0)) * (g - 1)) / r);
+  },
+  PV: (a, c) => {
+    const bad = needArgs(a, 3, 5);
+    if (bad) return bad;
+    const x = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c), numAt(a, 3, c, 0), numAt(a, 4, c, 0)];
+    for (const v of x) if (isErr(v)) return v;
+    const [r, np, pm, f0, t] = x as number[];
+    if (r === 0) return -(f0 + pm * np);
+    const g = Math.pow(1 + r, np);
+    return -(f0 + (pm * (1 + r * (t ? 1 : 0)) * (g - 1)) / r) / g;
+  },
+  NPV: (a, c) => {
+    if (a.length < 2) return E('#ERROR!');
+    const rate = numAt(a, 0, c);
+    if (isErr(rate)) return rate;
+    const flows = collectNums(a.slice(1), c);
+    if (isErr(flows)) return flows;
+    if (rate === -1) return E('#DIV/0!');
+    return flows.reduce((p, v, i) => p + v / Math.pow(1 + rate, i + 1), 0);
+  },
+  IRR: (a, c) => {
+    const bad = needArgs(a, 1, 2);
+    if (bad) return bad;
+    const flows = collectNums([a[0]], c);
+    if (isErr(flows)) return flows;
+    const guess = numAt(a, 1, c, 0.1);
+    if (isErr(guess)) return guess;
+    if (!flows.some((v) => v > 0) || !flows.some((v) => v < 0)) return E('#NUM!');
+    const f = (r: number) => flows.reduce((p, v, i) => p + v / Math.pow(1 + r, i), 0);
+    // Newton dulu. Kalau tidak konvergen, jatuh ke bisection di rentang yang berganti tanda.
+    let r = guess;
+    for (let i = 0; i < 100; i++) {
+      const y = f(r);
+      const d = (f(r + 1e-6) - y) / 1e-6;
+      if (!isFinite(d) || d === 0) break;
+      const next = r - y / d;
+      if (!isFinite(next) || next <= -0.999999) break;
+      if (Math.abs(next - r) < 1e-10) return next;
+      r = next;
+    }
+    let lo = -0.99;
+    let hi = 10;
+    if (f(lo) * f(hi) > 0) return E('#NUM!');
+    for (let i = 0; i < 200; i++) {
+      const mid = (lo + hi) / 2;
+      if (f(lo) * f(mid) <= 0) hi = mid;
+      else lo = mid;
+    }
+    return (lo + hi) / 2;
+  },
+
+  AVERAGEIFS: (a, c) => ifsFamily(a, c, 'avg'),
+  MAXIFS: (a, c) => ifsFamily(a, c, 'max'),
+  MINIFS: (a, c) => ifsFamily(a, c, 'min'),
+
+  LARGE: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const xs = collectNums([a[0]], c);
+    if (isErr(xs)) return xs;
+    const k = numAt(a, 1, c);
+    if (isErr(k)) return k;
+    const kk = Math.trunc(k);
+    if (kk < 1 || kk > xs.length) return E('#NUM!');
+    return [...xs].sort((p, q) => q - p)[kk - 1];
+  },
+  SMALL: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const xs = collectNums([a[0]], c);
+    if (isErr(xs)) return xs;
+    const k = numAt(a, 1, c);
+    if (isErr(k)) return k;
+    const kk = Math.trunc(k);
+    if (kk < 1 || kk > xs.length) return E('#NUM!');
+    return [...xs].sort((p, q) => p - q)[kk - 1];
+  },
+  RANK: (a, c) => {
+    const bad = needArgs(a, 2, 3);
+    if (bad) return bad;
+    const x = numAt(a, 0, c);
+    if (isErr(x)) return x;
+    const r = rangeOf(a[1], c);
+    if (isErr(r)) return r;
+    const order = numAt(a, 2, c, 0);
+    if (isErr(order)) return order;
+    const xs = flat(r).filter((v): v is number => typeof v === 'number');
+    if (!xs.includes(x)) return E('#N/A');
+    return 1 + xs.filter((v) => (order === 0 ? v > x : v < x)).length;
+  },
+  CEILING: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const x = numAt(a, 0, c);
+    const m = numAt(a, 1, c);
+    if (isErr(x)) return x;
+    if (isErr(m)) return m;
+    if (m === 0) return 0;
+    if (x > 0 && m < 0) return E('#NUM!');
+    return Math.ceil(Number((x / m).toPrecision(15))) * m;
+  },
+  FLOOR: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const x = numAt(a, 0, c);
+    const m = numAt(a, 1, c);
+    if (isErr(x)) return x;
+    if (isErr(m)) return m;
+    if (m === 0) return E('#DIV/0!');
+    if (x > 0 && m < 0) return E('#NUM!');
+    return Math.floor(Number((x / m).toPrecision(15))) * m;
+  },
+  SUBSTITUTE: (a, c) => {
+    const bad = needArgs(a, 3, 4);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    const from = sc(a[1], c);
+    const to = sc(a[2], c);
+    for (const v of [t, from, to]) if (isErr(v)) return v;
+    const text = str(t as Scalar);
+    const old = str(from as Scalar);
+    const rep = str(to as Scalar);
+    if (old === '') return text;
+    if (a.length === 3) return text.split(old).join(rep);
+    const nth = numAt(a, 3, c);
+    if (isErr(nth)) return nth;
+    if (nth < 1) return E('#VALUE!');
+    let idx = -1;
+    for (let i = 0; i < Math.trunc(nth); i++) {
+      idx = text.indexOf(old, idx + 1);
+      if (idx === -1) return text;
+    }
+    return text.slice(0, idx) + rep + text.slice(idx + old.length);
+  },
+  CHOOSE: (a, c) => {
+    if (a.length < 2) return E('#ERROR!');
+    const i = numAt(a, 0, c);
+    if (isErr(i)) return i;
+    const k = Math.trunc(i);
+    if (k < 1 || k >= a.length) return E('#VALUE!');
+    return sc(a[k], c);
+  },
+  ISNUMBER: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    return typeof sc(a[0], c) === 'number';
+  },
+  ISBLANK: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    return sc(a[0], c) === null;
+  },
+  SLN: (a, c) => {
+    const bad = needArgs(a, 3);
+    if (bad) return bad;
+    const x = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c)];
+    for (const v of x) if (isErr(v)) return v;
+    const [cost, salvage, life] = x as number[];
+    return life === 0 ? E('#DIV/0!') : (cost - salvage) / life;
+  },
+  SYD: (a, c) => {
+    const bad = needArgs(a, 4);
+    if (bad) return bad;
+    const x = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c), numAt(a, 3, c)];
+    for (const v of x) if (isErr(v)) return v;
+    const [cost, salvage, life, per] = x as number[];
+    if (life <= 0 || per < 1 || per > life) return E('#NUM!');
+    return ((cost - salvage) * (life - per + 1) * 2) / (life * (life + 1));
+  },
+  DDB: (a, c) => {
+    const bad = needArgs(a, 4, 5);
+    if (bad) return bad;
+    const x = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c), numAt(a, 3, c), numAt(a, 4, c, 2)];
+    for (const v of x) if (isErr(v)) return v;
+    const [cost, salvage, life, per, factor] = x as number[];
+    if (life <= 0 || per < 1 || per > life || cost < 0 || salvage < 0 || factor <= 0) return E('#NUM!');
+    let book = cost;
+    let dep = 0;
+    for (let i = 1; i <= Math.trunc(per); i++) {
+      dep = Math.min(book * (factor / life), Math.max(book - salvage, 0));
+      book -= dep;
+    }
+    return dep;
+  },
+  NPER: (a, c) => {
+    const bad = needArgs(a, 3, 5);
+    if (bad) return bad;
+    const x = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c), numAt(a, 3, c, 0), numAt(a, 4, c, 0)];
+    for (const v of x) if (isErr(v)) return v;
+    const [rate, pmt, pv, fv, type] = x as number[];
+    if (rate === 0) return pmt === 0 ? E('#NUM!') : -(pv + fv) / pmt;
+    const adj = pmt * (1 + rate * (type ? 1 : 0));
+    const top = adj - fv * rate;
+    const bottom = adj + pv * rate;
+    if (top / bottom <= 0) return E('#NUM!');
+    return Math.log(top / bottom) / Math.log(1 + rate);
   },
 };
 

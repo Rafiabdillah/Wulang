@@ -15,6 +15,7 @@
     "lib/check.ts",
     "lib/functions.ts",
     "lib/courses.ts",
+    "lib/bisnis/*.ts",
     "tests/**/*.ts"
   ]
 }
