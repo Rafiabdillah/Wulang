@@ -40,7 +40,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Decorative Grid BG */}
         <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none bg-[radial-gradient(#8b5cf6_1px,transparent_1px)] [background-size:16px_16px]"></div>
       </div>
 

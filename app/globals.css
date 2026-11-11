@@ -14,7 +14,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -30,7 +29,6 @@ body {
   background: #334155;
 }
 
-/* Cell Glow Animation */
 @keyframes cell-pulse {
   0%, 100% {
     box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);

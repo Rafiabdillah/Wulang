@@ -68,7 +68,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        {/* User Stats Card Bottom */}
         <div className="bg-slate-950/80 rounded-2xl p-3 border border-slate-800/80 space-y-2 mt-6">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-400">Progress Belajar</span>

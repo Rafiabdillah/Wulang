@@ -18,7 +18,6 @@ export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: S
 
   return (
     <div className="bg-slate-950 border border-slate-800/90 rounded-xl overflow-hidden flex flex-col shadow-2xl">
-      {/* Grid Header A, B, C */}
       <div className="grid grid-cols-12 bg-slate-900 border-b border-slate-800 text-center font-mono text-xs text-slate-400 font-bold py-2 select-none">
         <div className="col-span-1 border-r border-slate-800/80 bg-slate-950/50 text-slate-600">#</div>
         {columns.map((colHeader, idx) => {
@@ -37,7 +36,6 @@ export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: S
         })}
       </div>
 
-      {/* Grid Rows Data */}
       <div className="divide-y divide-slate-800/60 font-mono text-sm">
         {rows.map((row, rIdx) => {
           const isTargetRow = rIdx === targetRowIndex - 1;
