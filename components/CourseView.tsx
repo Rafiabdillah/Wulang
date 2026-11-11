@@ -3,7 +3,16 @@
 import React from 'react';
 import Link from 'next/link';
 
-export default function CourseView() {
+export interface ExerciseMeta {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  difficulty: string;
+  desc?: string;
+}
+
+export function CourseView() {
   const modules = [
     {
       id: 1,
@@ -103,3 +112,5 @@ export default function CourseView() {
     </div>
   );
 }
+
+export default CourseView;

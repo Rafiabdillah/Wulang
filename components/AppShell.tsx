@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -17,10 +17,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex font-sans antialiased">
-      {/* Sidebar Kiri Ramping ala Kantorku */}
       <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-slate-900/95 border-r border-slate-800/80 p-4 flex flex-col justify-between backdrop-blur-md transition-all duration-300 z-40 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div>
-          {/* Logo Brand 4-Kotak Wulang */}
           <Link href="/" className="flex items-center gap-3 px-2 py-3 mb-6 hover:opacity-90 transition-opacity">
             <div className="grid grid-cols-2 gap-1 w-9 h-9 p-1 bg-slate-950 rounded-xl border border-slate-800 shadow-inner shrink-0">
               <div className="bg-indigo-500 rounded-sm"></div>
@@ -34,7 +32,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
-          {/* Navigasi Utama Sidebar */}
           <nav className="space-y-1.5">
             <Link
               href="/"
@@ -87,7 +84,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Overlay Mobile */}
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)} 
@@ -95,7 +91,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Area Konten Utama */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b border-slate-800/80 bg-slate-900/60 px-4 md:px-6 flex items-center justify-between backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3">
@@ -126,3 +121,5 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+export default AppShell;

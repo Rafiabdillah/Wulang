@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import SheetGrid from './SheetGrid';
 
-interface ExerciseData {
+export interface ExerciseData {
   id: string;
   title: string;
   category: string;
@@ -17,11 +17,13 @@ interface ExerciseData {
   explanation: string;
 }
 
-export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
+export function ExercisePage({ exercise }: { exercise: ExerciseData }) {
   const [formulaInput, setFormulaInput] = useState('');
   const [userOutput, setUserOutput] = useState('');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showHint, setShowHint] = useState(false);
+
+  if (!exercise) return null;
 
   const handleRun = () => {
     if (!formulaInput.trim()) return;
@@ -42,15 +44,14 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      {/* Panel Kiri: Informasi Kasus Bisnis */}
       <div className="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between backdrop-blur-md shadow-xl space-y-5">
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="px-2.5 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 text-[11px] font-bold rounded-lg tracking-wider">
-              {exercise.category.toUpperCase()}
+              {(exercise.category || 'DATA').toUpperCase()}
             </span>
             <span className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold rounded-lg tracking-wider">
-              {exercise.difficulty.toUpperCase()}
+              {(exercise.difficulty || 'BASIC').toUpperCase()}
             </span>
           </div>
 
@@ -59,7 +60,6 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
             {exercise.instructions}
           </p>
 
-          {/* Hint Card Toggle */}
           <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-2">
             <button
               onClick={() => setShowHint(!showHint)}
@@ -76,7 +76,6 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
           </div>
         </div>
 
-        {/* Feedback Alert Banner */}
         {status === 'success' && (
           <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-4 text-emerald-400 flex items-start gap-3 shadow-lg">
             <span className="text-lg">✅</span>
@@ -98,10 +97,7 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
         )}
       </div>
 
-      {/* Panel Kanan: Formula Bar + Interactive Grid Canvas */}
       <div className="lg:col-span-8 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between backdrop-blur-md shadow-xl space-y-4">
-        
-        {/* Modern Command Formula Bar ala Kantorku */}
         <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2 shadow-inner">
           <div className="font-mono text-xs font-bold text-indigo-400 px-3 border-r border-slate-800 flex items-center gap-1">
             <span className="text-amber-400 font-extrabold">fx</span>
@@ -111,7 +107,7 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
             value={formulaInput}
             onChange={(e) => setFormulaInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleRun()}
-            placeholder={`Ketik rumus di sini (misal: ${exercise.expectedFormula[0]})`}
+            placeholder={`Ketik rumus di sini (misal: ${exercise.expectedFormula?.[0] || ''})`}
             className="flex-1 bg-transparent text-sm font-mono text-emerald-400 focus:outline-none placeholder:text-slate-600 px-2"
           />
           <button
@@ -122,15 +118,13 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
           </button>
         </div>
 
-        {/* Spreadsheet Canvas */}
         <SheetGrid
-          grid={exercise.initialGrid}
-          targetCell={exercise.targetCell}
+          grid={exercise.initialGrid || [[]]}
+          targetCell={exercise.targetCell || 'A1'}
           userOutput={userOutput}
           isSuccess={status === 'success'}
         />
 
-        {/* Action Controls & Target Status */}
         <div className="flex justify-between items-center text-xs text-slate-400 px-1">
           <button
             onClick={() => {
@@ -150,3 +144,5 @@ export default function ExercisePage({ exercise }: { exercise: ExerciseData }) {
     </div>
   );
 }
+
+export default ExercisePage;

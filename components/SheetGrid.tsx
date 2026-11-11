@@ -9,12 +9,12 @@ interface SheetGridProps {
   isSuccess?: boolean;
 }
 
-export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: SheetGridProps) {
-  const targetColLetter = targetCell.charAt(0);
-  const targetRowIndex = parseInt(targetCell.slice(1), 10) - 1;
+export function SheetGrid({ grid, targetCell, userOutput, isSuccess }: SheetGridProps) {
+  const targetColLetter = (targetCell || 'A1').charAt(0);
+  const targetRowIndex = parseInt((targetCell || 'A1').slice(1), 10) - 1;
 
-  const columns = grid[0] || [];
-  const rows = grid.slice(1);
+  const columns = grid?.[0] || [];
+  const rows = grid?.slice(1) || [];
 
   return (
     <div className="bg-slate-950 border border-slate-800/90 rounded-xl overflow-hidden flex flex-col shadow-2xl">
@@ -74,3 +74,5 @@ export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: S
     </div>
   );
 }
+
+export default SheetGrid;
