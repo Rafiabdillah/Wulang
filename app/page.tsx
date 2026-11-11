@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import CourseView from '@/components/CourseView';
+import CourseView from '../components/CourseView';
 
 export default function HomePage() {
   return (
