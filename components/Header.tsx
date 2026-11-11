@@ -1,77 +1,28 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { levelOf, streakOf, useProfile, useReady } from '../lib/store';
 
-const NAV = [
-  { href: '/kursus', label: 'Kursus' },
-  { href: '/latihan', label: 'Latihan' },
-  { href: '/tantangan', label: 'Tantangan' },
-  { href: '/ensiklopedia', label: 'Ensiklopedia' },
-  { href: '/leaderboard', label: 'Peringkat' },
-];
-
-export function Header() {
-  const path = usePathname() ?? '/';
-  const ready = useReady();
-  const profile = useProfile();
-  const lv = profile ? levelOf(profile.xp) : null;
-  const streak = profile ? streakOf(profile.days) : 0;
-
+export default function Header() {
   return (
-    <header className="site-header">
-      <a className="skip" href="#main">
-        Lewati ke konten
-      </a>
-      <div className="bar">
-        <Link href="/" className="brand" aria-label="Wulang, beranda">
-          <svg className="mark" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="2" y="2" width="9" height="9" rx="2" className="m1" />
-            <rect x="13" y="2" width="9" height="9" rx="2" className="m2" />
-            <rect x="2" y="13" width="9" height="9" rx="2" className="m2" />
-            <rect x="13" y="13" width="9" height="9" rx="2" className="m3" />
-          </svg>
-          <span className="word">Wulang</span>
+    <header className="border-b border-slate-800/80 bg-slate-900/40 px-6 py-3 flex items-center justify-between backdrop-blur-sm">
+      <div className="flex items-center gap-3">
+        <Link href="/kursus" className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-0.5 w-6 h-6 p-0.5 bg-slate-950 rounded-md border border-slate-800">
+            <div className="bg-indigo-500 rounded-[1px]"></div>
+            <div className="bg-slate-600 rounded-[1px]"></div>
+            <div className="bg-slate-700 rounded-[1px]"></div>
+            <div className="bg-amber-400 rounded-[1px]"></div>
+          </div>
+          <span className="font-bold text-white tracking-wider text-sm">WULANG</span>
         </Link>
-
-        <nav className="nav" aria-label="Menu utama">
-          {NAV.map((n) => {
-            const active = path === n.href || path.startsWith(n.href + '/');
-            return (
-              <Link key={n.href} href={n.href} aria-current={active ? 'page' : undefined} className={active ? 'on' : ''}>
-                {n.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <Link href="/masuk" className="me" aria-label="Profil dan masuk">
-          {ready && profile && lv ? (
-            <>
-              <span className="me-name">{profile.name}</span>
-              <span className="chip">Lv {lv.level}</span>
-              <span className="chip xp">{profile.xp} XP</span>
-              {streak > 0 && <span className="chip streak">{streak} hari</span>}
-            </>
-          ) : (
-            <span className="me-name">Masuk</span>
-          )}
-        </Link>
+      </div>
+      <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
+        <Link href="/kursus" className="hover:text-slate-200 transition-colors">Modul</Link>
+        <Link href="/latihan" className="hover:text-slate-200 transition-colors">Latihan</Link>
+        <Link href="/ensiklopedia" className="hover:text-slate-200 transition-colors">Ensiklopedia</Link>
+        <Link href="/leaderboard" className="hover:text-slate-200 transition-colors">Leaderboard</Link>
       </div>
     </header>
-  );
-}
-
-export function Footer() {
-  return (
-    <footer className="site-footer">
-      <div className="wrap">
-        <p>
-          <strong>Wulang</strong> berarti ajaran dalam bahasa Jawa. Tempat berlatih rumus spreadsheet lewat soal cerita, gratis dan jalan sepenuhnya di browsermu.
-        </p>
-        <p className="muted">Progres tersimpan di perangkat ini. Pakai Ekspor di halaman Masuk untuk membawanya ke perangkat lain.</p>
-      </div>
-    </footer>
   );
 }

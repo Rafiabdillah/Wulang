@@ -1,159 +1,82 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { flushSync } from 'react-dom';
-import type { CSSProperties } from 'react';
-import type { CellResult } from '../lib/check';
-import { addrOf, displayValue, evaluateSheet, isErrorValue, numToCol } from '../lib/formula';
-import type { Exercise } from '../lib/types';
+import React from 'react';
 
-interface Props {
-  ex: Exercise;
-  inputs: Record<string, string>;
-  results: Record<string, CellResult> | null;
-  selected: string | null;
-  onSelect: (addr: string) => void;
-  onChange: (addr: string, value: string) => void;
-  onEnter: (addr: string) => void;
-  registerRef: (addr: string, el: HTMLInputElement | null) => void;
+interface SheetGridProps {
+  grid: string[][];
+  targetCell: string; // e.g. "B2"
+  userOutput?: string;
+  isSuccess?: boolean;
 }
 
-const NUMERIC = /^-?\d+([.,]\d+)?$/;
+export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: SheetGridProps) {
+  // Extract target column letter and row number (e.g. "B" and "2")
+  const targetColLetter = targetCell.charAt(0);
+  const targetRowIndex = parseInt(targetCell.slice(1), 10) - 1;
 
-export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, onEnter, registerRef }: Props) {
-  const [editing, setEditing] = useState<string | null>(null);
-
-  const raw = useMemo(() => {
-    const filled: Record<string, string> = {};
-    for (const t of ex.targets) {
-      const v = inputs[t];
-      if (v !== undefined && v.trim() !== '') filled[t] = v;
-    }
-    return { ...ex.sheet, ...filled };
-  }, [ex, inputs]);
-  const values = useMemo(() => evaluateSheet(raw), [raw]);
-
-  const toneOf = (shown: string): string => {
-    const tone = ex.tones?.[shown];
-    return tone ? `tone-${tone}` : '';
-  };
-
-  const hasHeader = useMemo(() => {
-    const row1 = Array.from({ length: ex.nCols }, (_, c) => ex.sheet[addrOf(c + 1, 1)]).filter(
-      (v): v is string => v !== undefined && v !== ''
-    );
-    return row1.length > 0 && row1.every((v) => !NUMERIC.test(v) && !v.startsWith('='));
-  }, [ex]);
-
-  const cols = Array.from({ length: ex.nCols }, (_, i) => i + 1);
-  const rows = Array.from({ length: ex.nRows }, (_, i) => i + 1);
-  const barRaw = selected ? (inputs[selected] ?? ex.sheet[selected] ?? '') : '';
+  const columns = grid[0] || [];
+  const rows = grid.slice(1);
 
   return (
-    <div className="sheet">
-      <div className="fbar">
-        <span className="fbar-addr" aria-label="Sel terpilih">
-          {selected ?? '—'}
-        </span>
-        <span className="fbar-fx" aria-hidden="true">
-          fx
-        </span>
-        <span className="fbar-raw">{barRaw}</span>
+    <div className="bg-slate-950 border border-slate-800/90 rounded-xl overflow-hidden flex flex-col shadow-2xl">
+      {/* Grid Header A, B, C... */}
+      <div className="grid grid-cols-12 bg-slate-900 border-b border-slate-800 text-center font-mono text-xs text-slate-400 font-bold py-2 select-none">
+        <div className="col-span-1 border-r border-slate-800/80 bg-slate-950/50 text-slate-600">#</div>
+        {columns.map((colHeader, idx) => {
+          const colLetter = String.fromCharCode(65 + idx);
+          const isTargetCol = colLetter === targetColLetter;
+          return (
+            <div
+              key={idx}
+              className={`${idx === 0 ? 'col-span-5' : 'col-span-6'} border-r border-slate-800/80 ${
+                isTargetCol ? 'text-emerald-400 font-extrabold bg-emerald-500/10' : ''
+              }`}
+            >
+              {colLetter} ({colHeader})
+            </div>
+          );
+        })}
       </div>
-      <div className="sheet-scroll">
-        <table
-          className="grid"
-          aria-label={`Lembar kerja ${ex.title}`}
-          style={ex.nCols > 5 ? ({ '--cw': ex.tones ? '7.25rem' : '5.25rem' } as CSSProperties) : ex.tones ? ({ '--cw': '9rem' } as CSSProperties) : undefined}
-        >
-          <thead>
-            <tr>
-              <th className="corner" />
-              {cols.map((c) => (
-                <th key={c} scope="col">
-                  {numToCol(c)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r}>
-                <th scope="row">{r}</th>
-                {cols.map((c) => {
-                  const addr = addrOf(c, r);
-                  const isTarget = ex.targets.includes(addr);
-                  const res = results?.[addr];
-                  if (isTarget) {
-                    const input = inputs[addr] ?? '';
-                    const v = values[addr];
-                    const shown = input.trim().startsWith('=') ? displayValue(addr, v, raw, ex.fmt?.[addr]) : input;
-                    const cls = [
-                      'cell',
-                      'target',
-                      selected === addr ? 'sel' : '',
-                      res ? (res.ok ? 'ok' : 'bad') : '',
-                      typeof v === 'number' ? 'num' : '',
-                      isErrorValue(v) && input.trim() !== '' ? 'err' : '',
-                      input.trim().startsWith('=') ? toneOf(shown) : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ');
-                    return (
-                      <td key={c} className={cls}>
-                        <input
-                          ref={(el) => registerRef(addr, el)}
-                          value={editing === addr ? input : shown}
-                          placeholder="isi di sini"
-                          spellCheck={false}
-                          autoComplete="off"
-                          autoCapitalize="off"
-                          aria-label={`Sel ${addr}`}
-                          onFocus={(e) => {
-                            // Ganti tampilan ke isi mentah lebih dulu, baru pilih semua teksnya.
-                            // Tanpa ini ketikan baru menempel di ujung formula lama.
-                            flushSync(() => setEditing(addr));
-                            e.currentTarget.select();
-                            onSelect(addr);
-                          }}
-                          onBlur={() => setEditing((e) => (e === addr ? null : e))}
-                          onChange={(e) => onChange(addr, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-                              e.preventDefault();
-                              onEnter(addr);
-                            }
-                            if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
-                          }}
-                        />
-                      </td>
-                    );
-                  }
-                  const v = values[addr];
-                  const empty = ex.sheet[addr] === undefined;
-                  const shownStatic = empty ? '' : displayValue(addr, v, raw, ex.fmt?.[addr]);
-                  const cls = [
-                    'cell',
-                    r === 1 && hasHeader ? 'head' : '',
-                    typeof v === 'number' ? 'num' : '',
-                    isErrorValue(v) ? 'err' : '',
-                    selected === addr ? 'sel' : '',
-                    toneOf(shownStatic),
-                  ]
-                    .filter(Boolean)
-                    .join(' ');
-                  return (
-                    <td key={c} className={cls} onClick={() => onSelect(addr)}>
-                      {shownStatic}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {/* Grid Rows Data */}
+      <div className="divide-y divide-slate-800/60 font-mono text-sm">
+        {rows.map((row, rIdx) => {
+          const isTargetRow = rIdx === targetRowIndex - 1; // row 1 in data is array index 0
+
+          return (
+            <div key={rIdx} className="grid grid-cols-12 items-center min-h-[44px] hover:bg-slate-900/30 transition-colors">
+              {/* Index Baris */}
+              <div className="col-span-1 text-center text-xs text-slate-500 border-r border-slate-800/80 font-bold bg-slate-900/20 py-2.5">
+                {rIdx + 2}
+              </div>
+
+              {/* Data Sel A */}
+              <div className="col-span-5 px-4 text-slate-300 border-r border-slate-800/80 truncate text-xs">
+                {row[0]}
+              </div>
+
+              {/* Data Sel B (Target Cell Area) */}
+              <div className="col-span-6 px-3 py-1">
+                {rIdx === 0 ? ( // Rows matching target cell
+                  <div
+                    className={`w-full py-2 px-3 rounded-lg border-2 font-bold text-xs transition-all duration-300 ${
+                      isSuccess
+                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.35)]'
+                        : 'border-emerald-500/70 bg-emerald-500/10 text-emerald-400 animate-cell-glow'
+                    }`}
+                  >
+                    {userOutput || '...'}
+                  </div>
+                ) : (
+                  <div className="px-3 text-slate-500 text-xs">
+                    {row[1] || '-'}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      {ex.nCols > 5 && <p className="scroll-hint">Tabel lebar: geser ke kanan untuk melihat kolom lainnya.</p>}
     </div>
   );
 }

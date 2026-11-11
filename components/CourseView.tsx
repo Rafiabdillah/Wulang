@@ -1,147 +1,107 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
-import { useState } from 'react';
-import type { Course, Step } from '../lib/courses';
-import { courseExerciseSlugs, courseQuizIds } from '../lib/courses';
-import { QUIZ_XP, answerQuiz, useProfile, useReady } from '../lib/store';
 
-export interface ExerciseMeta {
-  title: string;
-  xp: number;
-  level: string;
-  kind: 'latihan' | 'tantangan';
-}
-
-interface Props {
-  course: Course;
-  meta: Record<string, ExerciseMeta>;
-}
-
-type QuizStep = Extract<Step, { type: 'kuis' }>;
-
-function Quiz({ step }: { step: QuizStep }) {
-  const profile = useProfile();
-  const [picked, setPicked] = useState<number | null>(null);
-  const done = Boolean(profile?.quiz[step.id]);
-  const answered = picked !== null || done;
-  const correct = done || picked === step.answer;
-
-  return (
-    <div className="step quiz card">
-      <div className="meta">
-        <span className="badge">Kuis</span>
-        <span className="badge xp">+{QUIZ_XP} XP</span>
-        {done && <span className="badge done">Selesai</span>}
-      </div>
-      <p className="q">{step.question}</p>
-      <div className="opts" role="radiogroup" aria-label={step.question}>
-        {step.options.map((o, i) => {
-          const isPicked = picked === i;
-          const showRight = answered && correct && i === step.answer;
-          const cls = ['opt', isPicked ? (i === step.answer ? 'right' : 'wrong') : '', showRight ? 'right' : '']
-            .filter(Boolean)
-            .join(' ');
-          return (
-            <button
-              key={i}
-              type="button"
-              role="radio"
-              aria-checked={isPicked}
-              className={cls}
-              disabled={done}
-              onClick={() => {
-                setPicked(i);
-                answerQuiz(step.id, i === step.answer);
-              }}
-            >
-              {o}
-            </button>
-          );
-        })}
-      </div>
-      {answered && (
-        <p className={`fb-inline ${correct ? 'ok' : 'bad'}`} aria-live="polite">
-          <strong>{correct ? 'Benar. ' : 'Belum tepat. '}</strong>
-          {correct ? step.explain : 'Baca lagi bagian di atas, lalu coba pilihan lain.'}
-        </p>
-      )}
-    </div>
-  );
-}
-
-export function CourseView({ course, meta }: Props) {
-  const ready = useReady();
-  const profile = useProfile();
-  const slugs = courseExerciseSlugs(course);
-  const quizIds = courseQuizIds(course);
-  const doneEx = ready && profile ? slugs.filter((s) => profile.solved[s]).length : 0;
-  const doneQuiz = ready && profile ? quizIds.filter((q) => profile.quiz[q]).length : 0;
-  const total = slugs.length + quizIds.length;
-  const done = doneEx + doneQuiz;
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-  const complete = total > 0 && done === total;
+export default function CourseView() {
+  const modules = [
+    {
+      id: 1,
+      slug: 'data-cleaning',
+      title: 'Modul 1: Pembersihan & Persiapan Data',
+      category: 'DATA CLEANING',
+      desc: 'Kuasai TRIM, PROPER, LEFT, MID, RIGHT, CONCAT, dan SUBSTITUTE untuk merapikan data transaksi berantakan.',
+      count: '7 Latihan',
+      difficulty: 'Basic',
+      color: 'from-indigo-500/20 to-purple-500/10 border-indigo-500/30',
+      badgeColor: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+    },
+    {
+      id: 2,
+      slug: 'lookup-reference',
+      title: 'Modul 2: Pencarian & Relasi Data',
+      category: 'LOOKUP & REF',
+      desc: 'Hubungkan tabel transaksi dengan tabel master harga menggunakan VLOOKUP, XLOOKUP, dan INDEX-MATCH.',
+      count: '6 Latihan',
+      difficulty: 'Intermediate',
+      color: 'from-blue-500/20 to-cyan-500/10 border-blue-500/30',
+      badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+    },
+    {
+      id: 3,
+      slug: 'agregasi-laporan',
+      title: 'Modul 3: Agregasi & Pembuatan Laporan',
+      category: 'AGGREGATION',
+      desc: 'Buat rekapitulasi omzet dan analisis performa tim sales menggunakan SUMIFS, COUNTIFS, dan AVERAGEIFS.',
+      count: '5 Latihan',
+      difficulty: 'Intermediate',
+      color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30',
+      badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    },
+    {
+      id: 4,
+      slug: 'waktu-tagihan',
+      title: 'Modul 4: Manajemen Waktu & Tagihan',
+      category: 'DATE & TIME',
+      desc: 'Kalkulasi jatuh tempo invoice, tanggal kerja proyek, dan masa bakti HRD menggunakan WORKDAY dan DATEDIF.',
+      count: '5 Latihan',
+      difficulty: 'Advanced',
+      color: 'from-amber-500/20 to-orange-500/10 border-amber-500/30',
+      badgeColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    },
+    {
+      id: 5,
+      slug: 'validasi-visual',
+      title: 'Modul 5: Validasi & Otomatisasi Visual',
+      category: 'DATA INTEGRITY',
+      desc: 'Cegah kesalahan input admin dengan Data Validation dropdown list dan alarm stok Conditional Formatting.',
+      count: '4 Latihan',
+      difficulty: 'Advanced',
+      color: 'from-rose-500/20 to-pink-500/10 border-rose-500/30',
+      badgeColor: 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+    }
+  ];
 
   return (
-    <>
-      <div className="progress-wrap" aria-label="Progres kursus">
-        <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-          <span style={{ width: `${pct}%` }} />
-        </div>
-        <p className="muted">
-          {done} dari {total} langkah selesai ({pct}%)
+    <div className="space-y-6">
+      {/* Header Dashboard Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/50 to-slate-900 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+        <h1 className="text-2xl font-extrabold text-white mb-2">5 Pilar Modul Spreadsheet Bisnis</h1>
+        <p className="text-slate-400 text-sm max-w-2xl leading-relaxed">
+          Pilih modul pelatihan di bawah ini untuk mengasah keterampilan pengolahan data dunia kerja dari tingkat dasar hingga mahir.
         </p>
       </div>
 
-      <ol className="steps">
-        {course.steps.map((s, i) => (
-          <li key={i}>
-            {s.type === 'bacaan' && (
-              <div className="step read card">
-                <div className="meta">
-                  <span className="badge">Bacaan</span>
-                </div>
-                <h3>{s.title}</h3>
-                {s.body.map((p, j) => (
-                  <p key={j}>{p}</p>
-                ))}
+      {/* Grid Cards Modul ala Kantorku */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {modules.map((mod) => (
+          <Link
+            key={mod.id}
+            href={`/latihan`}
+            className={`bg-gradient-to-br ${mod.color} border rounded-2xl p-5 hover:scale-[1.02] transition-all duration-200 flex flex-col justify-between space-y-4 group backdrop-blur-md shadow-lg`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className={`px-2.5 py-1 border text-[10px] font-extrabold rounded-lg tracking-wider ${mod.badgeColor}`}>
+                  {mod.category}
+                </span>
+                <span className="text-xs text-slate-400 font-mono">{mod.count}</span>
               </div>
-            )}
-            {s.type === 'latihan' && (
-              <Link
-                href={`/${meta[s.slug]?.kind === 'tantangan' ? 'tantangan' : 'latihan'}/${s.slug}`}
-                className={`step card ex-step${ready && profile?.solved[s.slug] ? ' is-done' : ''}`}
-              >
-                <div className="meta">
-                  <span className="badge">{meta[s.slug]?.kind === 'tantangan' ? 'Tantangan' : 'Latihan'}</span>
-                  <span className="badge xp">+{meta[s.slug]?.xp ?? 0} XP</span>
-                  {ready && profile?.solved[s.slug] && <span className="badge done">Selesai</span>}
-                </div>
-                <h3>{meta[s.slug]?.title ?? s.slug}</h3>
-                <span className="muted">{meta[s.slug]?.level}</span>
-              </Link>
-            )}
-            {s.type === 'kuis' && <Quiz step={s} />}
-          </li>
-        ))}
-      </ol>
+              <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors mb-2">
+                {mod.title}
+              </h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                {mod.desc}
+              </p>
+            </div>
 
-      {complete && profile && (
-        <section className="certificate" aria-label="Sertifikat">
-          <div className="cert-inner">
-            <p className="cert-top">Sertifikat penyelesaian</p>
-            <p className="cert-name">{profile.name}</p>
-            <p>telah menyelesaikan kursus</p>
-            <p className="cert-course">{course.title}</p>
-            <p className="muted">
-              di Wulang, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          </div>
-          <button type="button" className="btn primary no-print" onClick={() => window.print()}>
-            Cetak atau simpan PDF
-          </button>
-        </section>
-      )}
-    </>
+            <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-400">Tingkat: <strong className="text-slate-200">{mod.difficulty}</strong></span>
+              <span className="text-indigo-400 group-hover:translate-x-1 transition-transform">Mulai Latihan →</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
