@@ -1,5 +1,7 @@
 // Kursus Wulang: urutan bacaan, latihan, dan kuis. Semua teks ditulis sendiri.
 
+import { MODUL_COURSES } from './courses-modul';
+
 export type Step =
   | { type: 'bacaan'; title: string; body: string[] }
   | { type: 'latihan'; slug: string }
@@ -526,6 +528,7 @@ export const COURSES: Course[] = [
       },
     ],
   },
+  ...MODUL_COURSES,
 ];
 
 export function getCourse(slug: string): Course | undefined {

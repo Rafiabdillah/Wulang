@@ -19,10 +19,10 @@ Butuh Node 18.18 atau lebih baru.
 
 | Bagian | Lokasi |
 | --- | --- |
-| Mesin formula (63 fungsi) | `lib/formula.ts` |
+| Mesin formula (99 fungsi, termasuk tanggal dan teks) | `lib/formula.ts`, `lib/datefmt.ts` |
 | Pengecek jawaban per sel | `lib/check.ts` |
-| Soal latihan dan tantangan | `lib/exercises.ts` |
-| Kursus dan kuis | `lib/courses.ts` |
+| Soal latihan dan tantangan | `lib/exercises.ts`, `lib/bisnis/` |
+| Kursus dan kuis | `lib/courses.ts`, `lib/courses-modul.ts` |
 | Ensiklopedia fungsi | `lib/functions.ts` |
 | XP, level, streak, profil lokal | `lib/store.ts` |
 | Halaman | `app/` |
@@ -44,6 +44,14 @@ Tambahkan objek baru di `DEFS` dalam `lib/exercises.ts`: isi `rows` (sel target 
 
 Fungsi baru ditambahkan di `FUNCS` pada `lib/formula.ts`, lalu didokumentasikan di `lib/functions.ts`.
 
+## Lima modul kasus nyata
+
+Pembersihan data (`bersih-*`), pencarian dan relasi (`cari-*`), agregasi dan laporan (`lapor-*`), tanggal dan waktu (`waktu-*`), serta validasi dan status berwarna (`valid-*`). Tiap modul punya kursus sendiri (`modul-*`) berisi bacaan, kuis, dan enam soal.
+
+- Tanggal diketik sebagai `2026-01-15` atau `15/01/2026`, jam sebagai `08:30`. Hasil tanggal ditampilkan hari/bulan/tahun. Soal bisa memaksa format lewat `fmt`.
+- Warna status (hijau, kuning, merah) dipetakan dari teks hasil lewat `tones` pada soal. Ini bukan format bersyarat sungguhan, hanya tampilan di Wulang.
+- Fungsi `TODAY` dan `NOW` sengaja tidak ada: hasilnya berubah tiap hari sehingga jawaban tidak bisa dicek tetap. Soal memakai sel tanggal acuan.
+
 ## Yang perlu kamu tahu
 
 - Progres tersimpan di `localStorage` browser. Hapus data situs berarti progres hilang. Pakai Ekspor dan Impor di halaman Masuk untuk cadangan atau pindah perangkat.
@@ -54,4 +62,4 @@ Fungsi baru ditambahkan di `FUNCS` pada `lib/formula.ts`, lalu didokumentasikan 
 
 ## Status verifikasi
 
-Sudah diuji: 820 uji otomatis (mesin formula, semua soal, kursus, ensiklopedia) dan uji di Chromium untuk alur soal, XP, draf, kuis, profil, peringkat, ensiklopedia, serta tampilan 390 px. `npm install` dan `next build` belum bisa dijalankan saat proyek ditulis, jadi build pertama di komputermu adalah uji terakhir.
+Sudah diuji: 2408 uji otomatis (mesin formula, semua soal, kursus, ensiklopedia) dan uji di Chromium untuk alur soal, XP, draf, kuis, profil, peringkat, ensiklopedia, serta tampilan 390 px. `npm install` dan `next build` belum bisa dijalankan saat proyek ditulis, jadi build pertama di komputermu adalah uji terakhir.

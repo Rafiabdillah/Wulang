@@ -1,6 +1,9 @@
+import type { CellFormat } from './datefmt';
+
 export type Scalar = number | string | boolean | null;
 export type Level = 'Mudah' | 'Sedang' | 'Sulit';
 export type Kind = 'latihan' | 'tantangan';
+export type Tone = 'ok' | 'warn' | 'bad';
 
 // Definisi yang ditulis tangan di lib/exercises.ts.
 export interface ExerciseDef {
@@ -24,6 +27,10 @@ export interface ExerciseDef {
   vary?: string[];
   hints: [string, string, string];
   explanation: string;
+  // Cara menampilkan hasil bertipe tanggal atau jam di sel tertentu.
+  fmt?: Record<string, CellFormat>;
+  // Warna sel menurut teks status yang tampil, mis. { Lunas: 'ok' }.
+  tones?: Record<string, Tone>;
 }
 
 // Bentuk yang dikirim ke browser.
@@ -40,6 +47,8 @@ export interface Exercise {
   note?: string;
   hints: [string, string, string];
   explanation: string;
+  fmt?: Record<string, CellFormat>;
+  tones?: Record<string, Tone>;
   sheet: Record<string, string>;
   nRows: number;
   nCols: number;

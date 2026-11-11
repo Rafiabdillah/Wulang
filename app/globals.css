@@ -1336,3 +1336,28 @@ a.card:hover {
   border-top: 1px solid var(--line);
   background: var(--surface-2);
 }
+
+.grid td.tone-ok {
+  background: var(--good-bg);
+  color: var(--good);
+  font-weight: 700;
+}
+
+.grid td.tone-warn {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.grid td.tone-bad {
+  background: var(--bad-bg);
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.grid td.target.tone-ok input {
+  color: var(--good);
+}
+
+.grid td.target.tone-bad input {
+  color: var(--bad);
+}

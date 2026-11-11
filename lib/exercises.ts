@@ -1,3 +1,4 @@
+import { ymdFromSerial, parseTemporal } from './datefmt';
 import { addrOf, evaluateSheet, expandRange, isErrorValue, parseAddr } from './formula';
 import type { Value } from './formula';
 import { KEUANGAN } from './bisnis/keuangan';
@@ -5,6 +6,11 @@ import { PAJAK } from './bisnis/pajak';
 import { PENJUALAN } from './bisnis/penjualan';
 import { SDM } from './bisnis/sdm';
 import { TAMBAHAN } from './bisnis/tambahan';
+import { BERSIH } from './bisnis/bersih';
+import { CARI } from './bisnis/cari';
+import { LAPOR } from './bisnis/lapor';
+import { WAKTU } from './bisnis/waktu';
+import { VALID } from './bisnis/valid';
 import type { Exercise, ExerciseDef, Kind, Level, Scalar } from './types';
 
 const DEFAULT_XP: Record<Level, number> = { Mudah: 10, Sedang: 15, Sulit: 25 };
@@ -27,7 +33,14 @@ function applyVariant(sheet: Record<string, string>, vary: string[]): Record<str
     for (const a of expandRange(range)) {
       idx++;
       const raw = out[a];
-      if (raw === undefined || !/^-?\d+(\.\d+)?$/.test(raw)) continue;
+      if (raw === undefined) continue;
+      const when = parseTemporal(raw);
+      if (when && when.format === 'date') {
+        const { y, m, d } = ymdFromSerial(when.serial + (idx % 5) + 1);
+        out[a] = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        continue;
+      }
+      if (!/^-?\d+(\.\d+)?$/.test(raw)) continue;
       const n = Number(raw);
       out[a] = Number.isInteger(n)
         ? String(Math.round(n * 1.13) + idx)
@@ -81,6 +94,8 @@ function build(def: ExerciseDef): Exercise {
     note: def.note,
     hints: def.hints,
     explanation: def.explanation,
+    fmt: def.fmt,
+    tones: def.tones,
     sheet,
     nRows: def.rows.length,
     nCols: Math.max(...def.rows.map((r) => r.length)),
@@ -781,7 +796,7 @@ const DEFS: ExerciseDef[] = [
 ];
 
 // Soal dasar ditulis di sini. Soal kasus bisnis ada di lib/bisnis/.
-export const EXERCISES: Exercise[] = [...DEFS, ...KEUANGAN, ...PAJAK, ...PENJUALAN, ...SDM, ...TAMBAHAN].map(build);
+export const EXERCISES: Exercise[] = [...DEFS, ...KEUANGAN, ...PAJAK, ...PENJUALAN, ...SDM, ...TAMBAHAN, ...BERSIH, ...CARI, ...LAPOR, ...WAKTU, ...VALID].map(build);
 
 export function getExercise(slug: string): Exercise | undefined {
   return EXERCISES.find((e) => e.slug === slug);

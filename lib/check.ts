@@ -1,3 +1,4 @@
+import { formatTemporal } from './datefmt';
 import { evaluateSheet, formatValue, isErrorValue, usesFunction, valuesEqual } from './formula';
 import type { Exercise, Scalar } from './types';
 
@@ -13,8 +14,9 @@ export interface CheckResult {
   cells: Record<string, CellResult>;
 }
 
-function show(v: Scalar): string {
-  return formatValue(v);
+function show(v: Scalar, ex: Exercise, addr: string): string {
+  const f = ex.fmt?.[addr];
+  return f && typeof v === 'number' ? formatTemporal(v, f) : formatValue(v);
 }
 
 // Tiap sel target diperiksa sendiri-sendiri. Sel target lain diisi formula acuan,
@@ -42,8 +44,8 @@ export function checkAnswer(ex: Exercise, inputs: Record<string, string>): Check
       cells[t] = {
         ok: false,
         reason: 'Nilainya belum sesuai.',
-        got: show(baseVal),
-        want: show(ex.expected[t]),
+        got: show(baseVal, ex, t),
+        want: show(ex.expected[t], ex, t),
       };
       continue;
     }

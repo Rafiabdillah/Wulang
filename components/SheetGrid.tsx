@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { CSSProperties } from 'react';
 import type { CellResult } from '../lib/check';
-import { addrOf, evaluateSheet, formatValue, isErrorValue, numToCol } from '../lib/formula';
+import { addrOf, displayValue, evaluateSheet, isErrorValue, numToCol } from '../lib/formula';
 import type { Exercise } from '../lib/types';
 
 interface Props {
@@ -23,14 +23,20 @@ const NUMERIC = /^-?\d+([.,]\d+)?$/;
 export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, onEnter, registerRef }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
 
-  const values = useMemo(() => {
+  const raw = useMemo(() => {
     const filled: Record<string, string> = {};
     for (const t of ex.targets) {
       const v = inputs[t];
       if (v !== undefined && v.trim() !== '') filled[t] = v;
     }
-    return evaluateSheet({ ...ex.sheet, ...filled });
+    return { ...ex.sheet, ...filled };
   }, [ex, inputs]);
+  const values = useMemo(() => evaluateSheet(raw), [raw]);
+
+  const toneOf = (shown: string): string => {
+    const tone = ex.tones?.[shown];
+    return tone ? `tone-${tone}` : '';
+  };
 
   const hasHeader = useMemo(() => {
     const row1 = Array.from({ length: ex.nCols }, (_, c) => ex.sheet[addrOf(c + 1, 1)]).filter(
@@ -58,7 +64,7 @@ export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, o
         <table
           className="grid"
           aria-label={`Lembar kerja ${ex.title}`}
-          style={ex.nCols > 5 ? ({ '--cw': '5.25rem' } as CSSProperties) : undefined}
+          style={ex.nCols > 5 ? ({ '--cw': ex.tones ? '7.25rem' : '5.25rem' } as CSSProperties) : ex.tones ? ({ '--cw': '9rem' } as CSSProperties) : undefined}
         >
           <thead>
             <tr>
@@ -81,7 +87,7 @@ export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, o
                   if (isTarget) {
                     const input = inputs[addr] ?? '';
                     const v = values[addr];
-                    const shown = input.trim().startsWith('=') ? formatValue(v) : input;
+                    const shown = input.trim().startsWith('=') ? displayValue(addr, v, raw, ex.fmt?.[addr]) : input;
                     const cls = [
                       'cell',
                       'target',
@@ -89,6 +95,7 @@ export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, o
                       res ? (res.ok ? 'ok' : 'bad') : '',
                       typeof v === 'number' ? 'num' : '',
                       isErrorValue(v) && input.trim() !== '' ? 'err' : '',
+                      input.trim().startsWith('=') ? toneOf(shown) : '',
                     ]
                       .filter(Boolean)
                       .join(' ');
@@ -124,18 +131,20 @@ export function SheetGrid({ ex, inputs, results, selected, onSelect, onChange, o
                   }
                   const v = values[addr];
                   const empty = ex.sheet[addr] === undefined;
+                  const shownStatic = empty ? '' : displayValue(addr, v, raw, ex.fmt?.[addr]);
                   const cls = [
                     'cell',
                     r === 1 && hasHeader ? 'head' : '',
                     typeof v === 'number' ? 'num' : '',
                     isErrorValue(v) ? 'err' : '',
                     selected === addr ? 'sel' : '',
+                    toneOf(shownStatic),
                   ]
                     .filter(Boolean)
                     .join(' ');
                   return (
                     <td key={c} className={cls} onClick={() => onSelect(addr)}>
-                      {empty ? '' : formatValue(v)}
+                      {shownStatic}
                     </td>
                   );
                 })}

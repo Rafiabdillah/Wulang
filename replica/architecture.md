@@ -18,7 +18,7 @@ Alasan tanpa database: tujuan proyek adalah dipakai gratis. Konsekuensinya progr
 Per sel target: kosong, harus formula, nilai sama dengan acuan, fungsi wajib dipakai, lalu nilai tetap benar saat data diganti. Detail di `lib/check.ts`.
 
 ## Bagian yang berisiko
-1. Cakupan fungsi formula: baru 63 fungsi (belum ada fungsi tanggal dan TEXT). Soal baru yang memakai fungsi lain butuh fungsi itu ditambah dulu.
+1. Cakupan fungsi formula: 99 fungsi, termasuk tanggal, jam, TEXT, dan teks pembersih. Belum ada TODAY/NOW (tidak deterministik), fungsi array (FILTER, UNIQUE), dan pewarnaan bersyarat sungguhan. Soal baru yang memakai fungsi lain butuh fungsi itu ditambah dulu.
 2. Solusi ikut terkirim ke browser, jadi bisa diintip lewat view-source. Tidak masalah untuk pemakaian pribadi.
 3. Data hanya di localStorage: hapus data situs berarti progres hilang. Ada tombol ekspor dan impor di halaman Masuk.
 

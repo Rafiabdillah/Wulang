@@ -1,4 +1,4 @@
-import { evaluateSheet, formatValue, isErrorValue } from '../lib/formula';
+import { colToNum, displayValue, evaluateSheet, formatValue, isErrorValue } from '../lib/formula';
 import { EXERCISES } from '../lib/exercises';
 import { checkAnswer } from '../lib/check';
 import { COURSES, courseExerciseSlugs, courseQuizIds } from '../lib/courses';
@@ -229,6 +229,93 @@ t('ISNUMBER teks', num('=ISNUMBER(A1)', { A1: 'lima' }) === false);
 t('ISBLANK kosong', num('=ISBLANK(A1)', {}) === true);
 t('ISBLANK nol bukan kosong', num('=ISBLANK(A1)', { A1: '0' }) === false);
 
+// Tanggal, jam, dan teks.
+const dt = (f: string, s: Record<string, string> = {}) => num(f, s);
+const serial = (y: number, m: number, d: number) => Number(dt(`=DATE(${y};${m};${d})`));
+t('DATE 1 Jan 1900 area: 15 Jan 2026 = 46037', serial(2026, 1, 15) === 46037, String(serial(2026, 1, 15)));
+t('DATE bulan 13 meluber ke tahun depan', serial(2026, 13, 1) === serial(2027, 1, 1));
+t('DATE hari 0 mundur ke akhir bulan', serial(2026, 3, 0) === serial(2026, 2, 28));
+t('YEAR', dt('=YEAR(A1)', { A1: '2026-03-09' }) === 2026);
+t('MONTH', dt('=MONTH(A1)', { A1: '15/03/2026' }) === 3);
+t('DAY', dt('=DAY(A1)', { A1: '2026-03-09' }) === 9);
+t('literal tanggal jadi nomor seri', dt('=A1', { A1: '2026-01-15' }) === 46037);
+t('selisih tanggal dengan minus', dt('=B1-A1', { A1: '2026-01-01', B1: '2026-01-31' }) === 30);
+t('HOUR/MINUTE', dt('=HOUR(A1)', { A1: '08:45' }) === 8 && dt('=MINUTE(A1)', { A1: '08:45' }) === 45);
+t('TIME 6:30 = 0.2708333', dekat(dt('=TIME(6;30;0)'), 6.5 / 24));
+t('jam lembur: selisih dua jam', dekat(Number(dt('=(B1-A1)*24', { A1: '08:00', B1: '17:30' })), 9.5));
+t('EDATE 31 Jan + 1 bulan = 28 Feb', dt('=EDATE(A1;1)', { A1: '2026-01-31' }) === serial(2026, 2, 28));
+t('EDATE mundur', dt('=EDATE(A1;-2)', { A1: '2026-03-15' }) === serial(2026, 1, 15));
+t('EOMONTH', dt('=EOMONTH(A1;0)', { A1: '2026-02-10' }) === serial(2026, 2, 28));
+t('EOMONTH kabisat', dt('=EOMONTH(A1;0)', { A1: '2028-02-10' }) === serial(2028, 2, 29));
+t('WEEKDAY tipe 1 (15 Jan 2026 Kamis=5)', dt('=WEEKDAY(A1)', { A1: '2026-01-15' }) === 5);
+t('WEEKDAY tipe 2 (Senin=1)', dt('=WEEKDAY(A1;2)', { A1: '2026-01-12' }) === 1);
+t('WEEKDAY tipe 2 (Minggu=7)', dt('=WEEKDAY(A1;2)', { A1: '2026-01-11' }) === 7);
+t('DAYS', dt('=DAYS(B1;A1)', { A1: '2026-01-01', B1: '2026-03-01' }) === 59);
+t('DATEDIF Y', dt('=DATEDIF(A1;B1;"Y")', { A1: '2020-06-15', B1: '2026-06-14' }) === 5);
+t('DATEDIF Y tepat ulang tahun', dt('=DATEDIF(A1;B1;"Y")', { A1: '2020-06-15', B1: '2026-06-15' }) === 6);
+t('DATEDIF M', dt('=DATEDIF(A1;B1;"M")', { A1: '2026-01-31', B1: '2026-03-30' }) === 1);
+t('DATEDIF YM', dt('=DATEDIF(A1;B1;"YM")', { A1: '2020-01-15', B1: '2026-04-20' }) === 3);
+t('DATEDIF MD', dt('=DATEDIF(A1;B1;"MD")', { A1: '2026-01-20', B1: '2026-03-05' }) === 13);
+t('DATEDIF urutan terbalik = #NUM!', calc('=DATEDIF(A1;B1;"D")', { A1: '2026-03-01', B1: '2026-01-01' }) === '#NUM!');
+t('NETWORKDAYS Sen-Jum = 5', dt('=NETWORKDAYS(A1;B1)', { A1: '2026-01-12', B1: '2026-01-16' }) === 5);
+t('NETWORKDAYS lewati akhir pekan', dt('=NETWORKDAYS(A1;B1)', { A1: '2026-01-12', B1: '2026-01-19' }) === 6);
+t('NETWORKDAYS dengan libur', dt('=NETWORKDAYS(A1;B1;C1:C2)', { A1: '2026-01-12', B1: '2026-01-16', C1: '2026-01-14', C2: '2026-01-15' }) === 3);
+t('WORKDAY maju 5 hari kerja', dt('=WORKDAY(A1;5)', { A1: '2026-01-12' }) === serial(2026, 1, 19));
+t('WORKDAY dengan libur', dt('=WORKDAY(A1;5;C1)', { A1: '2026-01-12', C1: '2026-01-14' }) === serial(2026, 1, 20));
+t('WORKDAY mundur', dt('=WORKDAY(A1;-1)', { A1: '2026-01-12' }) === serial(2026, 1, 9));
+t('DATEVALUE', dt('=DATEVALUE(A1)', { A1: 'x' }) === '#VALUE!' && dt('=DATEVALUE("2026-01-15")') === 46037);
+t('TIMEVALUE', dekat(dt('=TIMEVALUE("12:00")'), 0.5));
+t('TEXT bulan panjang', calc('=TEXT(A1;"mmmm yyyy")', { A1: '2026-03-09' }) === 'Maret 2026');
+t('TEXT nama hari', calc('=TEXT(A1;"dddd")', { A1: '2026-01-15' }) === 'Kamis');
+t('TEXT dd/mm/yyyy', calc('=TEXT(A1;"dd/mm/yyyy")', { A1: '2026-03-09' }) === '09/03/2026');
+t('TEXT jam:menit', calc('=TEXT(A1;"hh:mm")', { A1: '08:05' }) === '08:05');
+t('TEXT ribuan', calc('=TEXT(1234567;"#,##0")') === '1.234.567');
+t('TEXT desimal', calc('=TEXT(0.5;"0.00")') === '0,50');
+t('TEXT nol di depan', calc('=TEXT(7;"000")') === '007');
+t('TEXT persen', calc('=TEXT(0.256;"0%")') === '26%');
+t('TEXT pola tak dikenal', calc('=TEXT(5;"abc")') === '#VALUE!');
+t('PROPER', calc('=PROPER("budi SANTOSO  putra")') === 'Budi Santoso  Putra');
+t('PROPER tanda hubung', calc('=PROPER("anna-maria o\'neil")') === "Anna-Maria O'Neil");
+t('CLEAN buang karakter kontrol', calc('=LEN(CLEAN(A1))', { A1: 'a\u0007b\u0001c' }) === '3');
+t('FIND peka huruf besar', calc('=FIND("b";"aBb")') === '3');
+t('FIND tak ketemu', calc('=FIND("z";"abc")') === '#VALUE!');
+t('SEARCH tak peka huruf besar', calc('=SEARCH("B";"aBb")') === '2');
+t('FIND posisi awal', calc('=FIND("a";"banana";3)') === '4');
+t('REPLACE', calc('=REPLACE("ABCDEF";3;2;"xx")') === 'ABxxEF');
+t('REPT', calc('=REPT("ab";3)') === 'ababab');
+t('EXACT beda huruf', calc('=EXACT("a";"A")') === 'FALSE' && calc('=EXACT("a";"a")') === 'TRUE');
+t('VALUE format Rupiah', dt('=VALUE("Rp 1.500.000")') === 1500000);
+t('VALUE koma desimal', dt('=VALUE("12,5")') === 12.5);
+t('VALUE persen', dekat(dt('=VALUE("15%")'), 0.15));
+t('VALUE teks biasa = #VALUE!', calc('=VALUE("abc")') === '#VALUE!');
+t('TEXTBEFORE', calc('=TEXTBEFORE("budi@kampus.ac.id";"@")') === 'budi');
+t('TEXTAFTER', calc('=TEXTAFTER("budi@kampus.ac.id";"@")') === 'kampus.ac.id');
+t('TEXTAFTER kemunculan ke-2', calc('=TEXTAFTER("a-b-c";"-";2)') === 'c');
+t('TEXTBEFORE tak ketemu = #N/A', calc('=TEXTBEFORE("abc";"@")') === '#N/A');
+t('TEXTJOIN abaikan kosong', calc('=TEXTJOIN(", ";TRUE;A1:A3)', { A1: 'x', A3: 'z' }) === 'x, z');
+t('TEXTJOIN sertakan kosong', calc('=TEXTJOIN("-";FALSE;A1:A3)', { A1: 'x', A3: 'z' }) === 'x--z');
+t('ISERROR', calc('=ISERROR(1/0)') === 'TRUE' && calc('=ISERROR(1)') === 'FALSE');
+t('ISTEXT', calc('=ISTEXT(A1)', { A1: 'x' }) === 'TRUE' && calc('=ISTEXT(A1)', { A1: '5' }) === 'FALSE');
+t('ISEVEN/ISODD', calc('=ISEVEN(4)') === 'TRUE' && calc('=ISODD(4)') === 'FALSE');
+t('IFNA hanya menangkap #N/A', calc('=IFNA(MATCH(9;A1:A2;0);"tidak ada")', { A1: '1', A2: '2' }) === 'tidak ada' && calc('=IFNA(1/0;"x")') === '#DIV/0!');
+t('TRUNC', dt('=TRUNC(-3.9)') === -3 && dekat(dt('=TRUNC(3.14159;2)'), 3.14));
+t('HLOOKUP tepat', calc('=HLOOKUP("Mar";A1:C2;2;FALSE)', { A1: 'Jan', B1: 'Feb', C1: 'Mar', A2: '10', B2: '20', C2: '30' }) === '30');
+t('HLOOKUP tak ketemu', calc('=HLOOKUP("Apr";A1:C2;2;FALSE)', { A1: 'Jan', B1: 'Feb', C1: 'Mar', A2: '10', B2: '20', C2: '30' }) === '#N/A');
+t('HLOOKUP perkiraan', calc('=HLOOKUP(55;A1:C2;2)', { A1: '0', B1: '50', C1: '80', A2: 'D', B2: 'C', C2: 'A' }) === 'C');
+t('HLOOKUP baris di luar rentang', calc('=HLOOKUP(1;A1:C2;5;FALSE)', { A1: '1' }) === '#REF!');
+t('COUNTIF dengan tanggal', dt('=COUNTIF(A1:A3;">="&DATE(2026;2;1))', { A1: '2026-01-15', A2: '2026-02-10', A3: '2026-03-01' }) === 2);
+t('SUMIFS rentang tanggal', dt('=SUMIFS(B1:B3;A1:A3;">="&DATE(2026;2;1);A1:A3;"<"&DATE(2026;3;1))', { A1: '2026-01-15', A2: '2026-02-10', A3: '2026-02-20', B1: '5', B2: '7', B3: '9' }) === 16);
+
+// Tampilan tanggal mengikuti isi mentah.
+const rawD = { A1: '2026-01-15', B1: '=A1+30', C1: '=EDATE(A1;1)', D1: '=B1-A1', E1: '08:30' };
+const valD = evaluateSheet(rawD);
+t('tampilan literal tanggal', displayValue('A1', valD.A1, rawD) === '15/01/2026');
+t('tampilan tanggal digeser angka', displayValue('B1', valD.B1, rawD) === '14/02/2026');
+t('tampilan hasil EDATE', displayValue('C1', valD.C1, rawD) === '15/02/2026');
+t('selisih dua tanggal tampil sebagai angka', displayValue('D1', valD.D1, rawD) === '30');
+t('tampilan jam', displayValue('E1', valD.E1, rawD) === '08:30');
+t('tampilan dipaksa soal', displayValue('B1', 46037, { B1: '=X' }, 'date') === '15/01/2026');
+
 // ---- Konten: kursus, kuis, ensiklopedia, solusi acuan ----
 const slugs = new Set(EXERCISES.map((e) => e.slug));
 t('slug soal unik', slugs.size === EXERCISES.length);
@@ -245,6 +332,11 @@ for (const c of COURSES) {
   }
 }
 for (const e of EXERCISES) {
+  for (const a of e.targets) {
+    const m = /^([A-Z]+)(\d+)$/.exec(a);
+    const inside = m !== null && colToNum(m[1]) <= e.nCols && Number(m[2]) <= e.nRows;
+    t(`sel target ${a} ada di dalam tabel (soal ${e.slug})`, inside);
+  }
   for (const f of e.fns) t(`ensiklopedia memuat ${f} (soal ${e.slug})`, getFunctionDoc(f) !== undefined);
   // Solusi acuan harus lulus pengecekan sendiri.
   t(`solusi acuan ${e.slug} lulus`, checkAnswer(e, e.solution).ok);

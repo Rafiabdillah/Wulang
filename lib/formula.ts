@@ -1,6 +1,23 @@
 // Mesin formula Wulang: tokenizer, parser, dan evaluator bergaya spreadsheet.
 // Tanpa dependensi. Dipakai di browser untuk menghitung sel dan memeriksa jawaban.
 
+import {
+  addMonths,
+  daysInMonth,
+  endOfMonth,
+  formatTemporal,
+  formatWithPattern,
+  hourOf,
+  minuteOf,
+  parseNumberText,
+  parseTemporal,
+  secondOf,
+  serialFromYmd,
+  weekdayOf,
+  ymdFromSerial,
+} from './datefmt';
+import type { CellFormat } from './datefmt';
+
 export class XlError {
   readonly code: string;
   constructor(code: string) {
@@ -661,6 +678,83 @@ function oneDim(r: RangeVal): Value[] | null {
   return null;
 }
 
+// Pembantu fungsi tanggal dan teks.
+
+function datePart(args: Node[], c: Ctx, pick: (serial: number) => number): Value {
+  const bad = needArgs(args, 1);
+  if (bad) return bad;
+  const s = numAt(args, 0, c);
+  if (isErr(s)) return s;
+  return s < 0 ? E('#NUM!') : pick(s);
+}
+
+function shiftMonths(args: Node[], c: Ctx, move: (serial: number, n: number) => number | null): Value {
+  const bad = needArgs(args, 2);
+  if (bad) return bad;
+  const [s, n] = [numAt(args, 0, c), numAt(args, 1, c)];
+  if (isErr(s)) return s;
+  if (isErr(n)) return n;
+  return move(Math.floor(s), Math.trunc(n)) ?? E('#NUM!');
+}
+
+function holidaySet(node: Node | undefined, c: Ctx): Set<number> | XlError {
+  const out = new Set<number>();
+  if (!node) return out;
+  const r = rangeOf(node, c);
+  if (isErr(r)) return r;
+  for (const v of flat(r)) {
+    if (isErr(v)) return v;
+    if (typeof v === 'number') out.add(Math.floor(v));
+  }
+  return out;
+}
+
+function isWorkday(serial: number, off: Set<number>): boolean {
+  const w = weekdayOf(serial);
+  return w !== 0 && w !== 6 && !off.has(serial);
+}
+
+function findText(args: Node[], c: Ctx, caseSensitive: boolean): Value {
+  const bad = needArgs(args, 2, 3);
+  if (bad) return bad;
+  const [what, where] = [sc(args[0], c), sc(args[1], c)];
+  if (isErr(what)) return what;
+  if (isErr(where)) return where;
+  const from = args[2] ? numAt(args, 2, c) : 1;
+  if (isErr(from)) return from;
+  if (from < 1) return E('#VALUE!');
+  const hay = caseSensitive ? str(where) : str(where).toLowerCase();
+  const needle = caseSensitive ? str(what) : str(what).toLowerCase();
+  const i = hay.indexOf(needle, Math.trunc(from) - 1);
+  return i < 0 ? E('#VALUE!') : i + 1;
+}
+
+function splitAt(args: Node[], c: Ctx, before: boolean): Value {
+  const bad = needArgs(args, 2, 3);
+  if (bad) return bad;
+  const [t, d] = [sc(args[0], c), sc(args[1], c)];
+  if (isErr(t)) return t;
+  if (isErr(d)) return d;
+  const nth = args[2] ? numAt(args, 2, c) : 1;
+  if (isErr(nth)) return nth;
+  const text = str(t);
+  const delim = str(d);
+  if (delim === '' || nth < 1) return E('#VALUE!');
+  let at = -1;
+  for (let k = 0; k < Math.trunc(nth); k++) {
+    at = text.indexOf(delim, at + 1);
+    if (at < 0) return E('#N/A');
+  }
+  return before ? text.slice(0, at) : text.slice(at + delim.length);
+}
+
+function parity(args: Node[], c: Ctx, want: number): Value {
+  const bad = needArgs(args, 1);
+  if (bad) return bad;
+  const n = numAt(args, 0, c);
+  return isErr(n) ? n : Math.abs(Math.trunc(n)) % 2 === want;
+}
+
 const FUNCS: Record<string, Fn> = {
   SUM: (a, c) => {
     const x = collectNums(a, c);
@@ -1259,6 +1353,283 @@ const FUNCS: Record<string, Fn> = {
     if (top / bottom <= 0) return E('#NUM!');
     return Math.log(top / bottom) / Math.log(1 + rate);
   },
+  // Tanggal dan jam.
+  DATE: (a, c) => {
+    const bad = needArgs(a, 3);
+    if (bad) return bad;
+    const [y, m, d] = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c)];
+    for (const v of [y, m, d]) if (isErr(v)) return v;
+    const first = serialFromYmd(Math.trunc(y as number), Math.trunc(m as number), 1);
+    return first === null ? E('#NUM!') : first + Math.trunc(d as number) - 1;
+  },
+  YEAR: (a, c) => datePart(a, c, (s) => ymdFromSerial(s).y),
+  MONTH: (a, c) => datePart(a, c, (s) => ymdFromSerial(s).m),
+  DAY: (a, c) => datePart(a, c, (s) => ymdFromSerial(s).d),
+  HOUR: (a, c) => datePart(a, c, hourOf),
+  MINUTE: (a, c) => datePart(a, c, minuteOf),
+  SECOND: (a, c) => datePart(a, c, secondOf),
+  TIME: (a, c) => {
+    const bad = needArgs(a, 3);
+    if (bad) return bad;
+    const [h, m, s] = [numAt(a, 0, c), numAt(a, 1, c), numAt(a, 2, c)];
+    for (const v of [h, m, s]) if (isErr(v)) return v;
+    const frac = ((h as number) * 3600 + (m as number) * 60 + (s as number)) / 86400;
+    return frac - Math.floor(frac);
+  },
+  EDATE: (a, c) => shiftMonths(a, c, addMonths),
+  EOMONTH: (a, c) => shiftMonths(a, c, endOfMonth),
+  WEEKDAY: (a, c) => {
+    const bad = needArgs(a, 1, 2);
+    if (bad) return bad;
+    const s = numAt(a, 0, c);
+    if (isErr(s)) return s;
+    const type = a[1] ? numAt(a, 1, c) : 1;
+    if (isErr(type)) return type;
+    const w = weekdayOf(s);
+    if (type === 1) return w + 1;
+    if (type === 2) return w === 0 ? 7 : w;
+    if (type === 3) return (w + 6) % 7;
+    return E('#NUM!');
+  },
+  DAYS: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const [end, start] = [numAt(a, 0, c), numAt(a, 1, c)];
+    if (isErr(end)) return end;
+    if (isErr(start)) return start;
+    return Math.floor(end) - Math.floor(start);
+  },
+  DATEDIF: (a, c) => {
+    const bad = needArgs(a, 3);
+    if (bad) return bad;
+    const [from, to] = [numAt(a, 0, c), numAt(a, 1, c)];
+    if (isErr(from)) return from;
+    if (isErr(to)) return to;
+    const unit = sc(a[2], c);
+    if (isErr(unit)) return unit;
+    if (Math.floor(from) > Math.floor(to)) return E('#NUM!');
+    const p = ymdFromSerial(from);
+    const q = ymdFromSerial(to);
+    let months = (q.y - p.y) * 12 + (q.m - p.m);
+    if (q.d < p.d) months -= 1;
+    switch (str(unit as Scalar).toUpperCase()) {
+      case 'D':
+        return Math.floor(to) - Math.floor(from);
+      case 'M':
+        return months;
+      case 'Y':
+        return Math.floor(months / 12);
+      case 'YM':
+        return months % 12;
+      case 'MD': {
+        if (q.d >= p.d) return q.d - p.d;
+        const prev = q.m === 1 ? daysInMonth(q.y - 1, 12) : daysInMonth(q.y, q.m - 1);
+        return prev - p.d + q.d;
+      }
+      default:
+        return E('#NUM!');
+    }
+  },
+  NETWORKDAYS: (a, c) => {
+    const bad = needArgs(a, 2, 3);
+    if (bad) return bad;
+    const [from, to] = [numAt(a, 0, c), numAt(a, 1, c)];
+    if (isErr(from)) return from;
+    if (isErr(to)) return to;
+    const off = holidaySet(a[2], c);
+    if (isErr(off)) return off;
+    const lo = Math.floor(Math.min(from, to));
+    const hi = Math.floor(Math.max(from, to));
+    let n = 0;
+    for (let d = lo; d <= hi; d++) if (isWorkday(d, off)) n++;
+    return from <= to ? n : -n;
+  },
+  WORKDAY: (a, c) => {
+    const bad = needArgs(a, 2, 3);
+    if (bad) return bad;
+    const [from, step] = [numAt(a, 0, c), numAt(a, 1, c)];
+    if (isErr(from)) return from;
+    if (isErr(step)) return step;
+    const off = holidaySet(a[2], c);
+    if (isErr(off)) return off;
+    const dir = step < 0 ? -1 : 1;
+    let left = Math.abs(Math.trunc(step));
+    let d = Math.floor(from);
+    while (left > 0) {
+      d += dir;
+      if (isWorkday(d, off)) left--;
+    }
+    return d;
+  },
+  DATEVALUE: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    if (isErr(t)) return t;
+    const p = typeof t === 'string' ? parseTemporal(t) : null;
+    return p ? Math.floor(p.serial) : E('#VALUE!');
+  },
+  TIMEVALUE: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    if (isErr(t)) return t;
+    const p = typeof t === 'string' ? parseTemporal(t) : null;
+    return p ? p.serial - Math.floor(p.serial) : E('#VALUE!');
+  },
+  TEXT: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const v = sc(a[0], c);
+    const p = sc(a[1], c);
+    if (isErr(v)) return v;
+    if (isErr(p)) return p;
+    const n = num(v);
+    if (isErr(n)) return typeof v === 'string' ? v : n;
+    return formatWithPattern(n, str(p as Scalar)) ?? E('#VALUE!');
+  },
+  // Teks pembersih.
+  PROPER: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    if (isErr(t)) return t;
+    return str(t).toLowerCase().replace(/(^|[^\p{L}])(\p{L})/gu, (_, p, ch: string) => p + ch.toUpperCase());
+  },
+  CLEAN: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    // eslint-disable-next-line no-control-regex
+    return isErr(t) ? t : str(t).replace(/[\u0000-\u001f]/g, '');
+  },
+  FIND: (a, c) => findText(a, c, true),
+  SEARCH: (a, c) => findText(a, c, false),
+  REPLACE: (a, c) => {
+    const bad = needArgs(a, 4);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    const start = numAt(a, 1, c);
+    const len = numAt(a, 2, c);
+    const rep = sc(a[3], c);
+    if (isErr(t)) return t;
+    if (isErr(start)) return start;
+    if (isErr(len)) return len;
+    if (isErr(rep)) return rep;
+    if (start < 1 || len < 0) return E('#VALUE!');
+    const s = str(t);
+    return s.slice(0, Math.trunc(start) - 1) + str(rep) + s.slice(Math.trunc(start) - 1 + Math.trunc(len));
+  },
+  REPT: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    const n = numAt(a, 1, c);
+    if (isErr(t)) return t;
+    if (isErr(n)) return n;
+    return n < 0 ? E('#VALUE!') : str(t).repeat(Math.trunc(n));
+  },
+  EXACT: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const [x, y] = [sc(a[0], c), sc(a[1], c)];
+    if (isErr(x)) return x;
+    if (isErr(y)) return y;
+    return str(x) === str(y);
+  },
+  VALUE: (a, c) => {
+    const bad = needArgs(a, 1);
+    if (bad) return bad;
+    const t = sc(a[0], c);
+    if (isErr(t)) return t;
+    if (typeof t === 'number') return t;
+    if (t === null) return 0;
+    const s = str(t);
+    const n = parseNumberText(s);
+    if (n !== null) return n;
+    const p = parseTemporal(s);
+    return p ? p.serial : E('#VALUE!');
+  },
+  TEXTBEFORE: (a, c) => splitAt(a, c, true),
+  TEXTAFTER: (a, c) => splitAt(a, c, false),
+  TEXTJOIN: (a, c) => {
+    if (a.length < 3) return E('#ERROR!');
+    const sep = sc(a[0], c);
+    const skip = toBool(sc(a[1], c));
+    if (isErr(sep)) return sep;
+    if (isErr(skip)) return skip;
+    const parts: string[] = [];
+    for (const n of a.slice(2)) {
+      const r = rangeOf(n, c);
+      if (isErr(r)) return r;
+      for (const v of flat(r)) {
+        if (isErr(v)) return v;
+        if (skip && (v === null || v === '')) continue;
+        parts.push(str(v));
+      }
+    }
+    return parts.join(str(sep));
+  },
+  // Pemeriksaan nilai.
+  ISERROR: (a, c) => {
+    const bad = needArgs(a, 1);
+    return bad ?? isErr(sc(a[0], c));
+  },
+  ISTEXT: (a, c) => {
+    const bad = needArgs(a, 1);
+    return bad ?? typeof sc(a[0], c) === 'string';
+  },
+  ISEVEN: (a, c) => parity(a, c, 0),
+  ISODD: (a, c) => parity(a, c, 1),
+  IFNA: (a, c) => {
+    const bad = needArgs(a, 2);
+    if (bad) return bad;
+    const v = sc(a[0], c);
+    return isErr(v) && v.code === '#N/A' ? sc(a[1], c) : v;
+  },
+  TRUNC: (a, c) => {
+    const bad = needArgs(a, 1, 2);
+    if (bad) return bad;
+    const n = numAt(a, 0, c);
+    if (isErr(n)) return n;
+    const d = a[1] ? numAt(a, 1, c) : 0;
+    if (isErr(d)) return d;
+    const f = Math.pow(10, Math.trunc(d));
+    return Math.trunc(Number((n * f).toPrecision(15))) / f;
+  },
+  HLOOKUP: (a, c) => {
+    const bad = needArgs(a, 3, 4);
+    if (bad) return bad;
+    const lv = sc(a[0], c);
+    if (isErr(lv)) return lv;
+    const t = rangeOf(a[1], c);
+    if (isErr(t)) return t;
+    const ri = numAt(a, 2, c);
+    if (isErr(ri)) return ri;
+    const idx = Math.trunc(ri);
+    if (idx < 1) return E('#VALUE!');
+    if (idx > t.rows.length) return E('#REF!');
+    let approx = true;
+    if (a[3]) {
+      const b = toBool(sc(a[3], c));
+      if (isErr(b)) return b;
+      approx = b;
+    }
+    const keys = t.rows[0];
+    const pick = (i: number): Value => (t.rows[idx - 1][i] === null ? 0 : t.rows[idx - 1][i]);
+    if (!approx) {
+      const i = keys.findIndex((k) => !isErr(k) && k !== null && lv !== null && cmp(k, lv) === 0);
+      return i < 0 ? E('#N/A') : pick(i);
+    }
+    let best = -1;
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (isErr(k) || k === null || rank(k) !== rank(lv ?? 0)) continue;
+      if (cmp(k, lv) <= 0) best = i;
+      else break;
+    }
+    return best < 0 ? E('#N/A') : pick(best);
+  },
 };
 
 export const SUPPORTED_FUNCTIONS: string[] = Object.keys(FUNCS);
@@ -1269,6 +1640,8 @@ function parseLiteral(raw: string): Value {
   const t = raw.trim();
   if (t === '') return null;
   if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  const when = parseTemporal(t);
+  if (when) return when.serial;
   const u = t.toUpperCase();
   if (u === 'TRUE') return true;
   if (u === 'FALSE') return false;
@@ -1329,6 +1702,28 @@ export function formatValue(v: Value): string {
   if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
   if (typeof v === 'number') return formatNumberId(v);
   return v;
+}
+
+const DATE_RESULT = new Set(['DATE', 'EDATE', 'EOMONTH', 'WORKDAY', 'DATEVALUE']);
+
+// Tampilan tanggal ikut isi mentah: literal tanggal, fungsi bertipe tanggal, atau acuan sel tanggal digeser angka.
+function formatOfRaw(raw: string | undefined, sheet: Record<string, string>, depth: number): CellFormat | undefined {
+  if (raw === undefined || depth > 4) return undefined;
+  const t = raw.trim();
+  if (!t.startsWith('=')) return parseTemporal(t)?.format;
+  const body = t.slice(1).trim();
+  const fn = /^([A-Za-z]+)\s*\(/.exec(body)?.[1].toUpperCase();
+  if (fn && DATE_RESULT.has(fn)) return 'date';
+  if (fn === 'TIME' || fn === 'TIMEVALUE') return 'time';
+  const shifted = /^\$?([A-Za-z]{1,3})\$?(\d+)\s*[+-]\s*[\d.]+$/.exec(body);
+  if (shifted) return formatOfRaw(sheet[(shifted[1] + shifted[2]).toUpperCase()], sheet, depth + 1);
+  return undefined;
+}
+
+// Teks yang tampil di sel. `forced` (dari soal) menang atas tebakan dari isi mentah.
+export function displayValue(addr: string, v: Value, sheet: Record<string, string>, forced?: CellFormat): string {
+  const f = typeof v === 'number' ? (forced ?? formatOfRaw(sheet[addr], sheet, 0)) : undefined;
+  return f ? formatTemporal(v as number, f) : formatValue(v);
 }
 
 export function valuesEqual(a: Value, b: Value): boolean {
