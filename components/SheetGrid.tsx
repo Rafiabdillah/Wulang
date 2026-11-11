@@ -4,13 +4,12 @@ import React from 'react';
 
 interface SheetGridProps {
   grid: string[][];
-  targetCell: string; // e.g. "B2"
+  targetCell: string;
   userOutput?: string;
   isSuccess?: boolean;
 }
 
 export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: SheetGridProps) {
-  // Extract target column letter and row number (e.g. "B" and "2")
   const targetColLetter = targetCell.charAt(0);
   const targetRowIndex = parseInt(targetCell.slice(1), 10) - 1;
 
@@ -19,7 +18,7 @@ export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: S
 
   return (
     <div className="bg-slate-950 border border-slate-800/90 rounded-xl overflow-hidden flex flex-col shadow-2xl">
-      {/* Grid Header A, B, C... */}
+      {/* Grid Header A, B, C */}
       <div className="grid grid-cols-12 bg-slate-900 border-b border-slate-800 text-center font-mono text-xs text-slate-400 font-bold py-2 select-none">
         <div className="col-span-1 border-r border-slate-800/80 bg-slate-950/50 text-slate-600">#</div>
         {columns.map((colHeader, idx) => {
@@ -41,28 +40,25 @@ export default function SheetGrid({ grid, targetCell, userOutput, isSuccess }: S
       {/* Grid Rows Data */}
       <div className="divide-y divide-slate-800/60 font-mono text-sm">
         {rows.map((row, rIdx) => {
-          const isTargetRow = rIdx === targetRowIndex - 1; // row 1 in data is array index 0
+          const isTargetRow = rIdx === targetRowIndex - 1;
 
           return (
             <div key={rIdx} className="grid grid-cols-12 items-center min-h-[44px] hover:bg-slate-900/30 transition-colors">
-              {/* Index Baris */}
               <div className="col-span-1 text-center text-xs text-slate-500 border-r border-slate-800/80 font-bold bg-slate-900/20 py-2.5">
                 {rIdx + 2}
               </div>
 
-              {/* Data Sel A */}
               <div className="col-span-5 px-4 text-slate-300 border-r border-slate-800/80 truncate text-xs">
                 {row[0]}
               </div>
 
-              {/* Data Sel B (Target Cell Area) */}
               <div className="col-span-6 px-3 py-1">
-                {rIdx === 0 ? ( // Rows matching target cell
+                {isTargetRow ? (
                   <div
                     className={`w-full py-2 px-3 rounded-lg border-2 font-bold text-xs transition-all duration-300 ${
                       isSuccess
                         ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.35)]'
-                        : 'border-emerald-500/70 bg-emerald-500/10 text-emerald-400 animate-cell-glow'
+                        : 'border-emerald-500/80 bg-emerald-500/10 text-emerald-400 animate-cell-glow'
                     }`}
                   >
                     {userOutput || '...'}

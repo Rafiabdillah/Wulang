@@ -64,15 +64,13 @@ export default function CourseView() {
 
   return (
     <div className="space-y-6">
-      {/* Header Dashboard Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/50 to-slate-900 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
-        <h1 className="text-2xl font-extrabold text-white mb-2">5 Pilar Modul Spreadsheet Bisnis</h1>
-        <p className="text-slate-400 text-sm max-w-2xl leading-relaxed">
-          Pilih modul pelatihan di bawah ini untuk mengasah keterampilan pengolahan data dunia kerja dari tingkat dasar hingga mahir.
-        </p>
+      <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+        <div>
+          <h2 className="text-xl font-bold text-white">5 Pilar Modul Bisnis Wulang</h2>
+          <p className="text-slate-400 text-xs mt-0.5">Materi terstruktur dari tingkat dasar hingga mahir.</p>
+        </div>
       </div>
 
-      {/* Grid Cards Modul ala Kantorku */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {modules.map((mod) => (
           <Link

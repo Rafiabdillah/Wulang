@@ -1,32 +1,27 @@
-import type { Metadata, Viewport } from 'next';
-import type { ReactNode } from 'react';
-import { Footer, Header } from '../components/Header';
+import type { Metadata } from 'next';
 import './globals.css';
+import AppShell from '@/components/AppShell';
 
 export const metadata: Metadata = {
-  title: { default: 'Wulang: latihan spreadsheet lewat soal cerita', template: '%s | Wulang' },
-  description:
-    'Berlatih rumus Excel dan Google Sheets lewat soal cerita. Tiap sel dicek langsung, ada XP, kursus, dan ensiklopedia fungsi. Gratis dan jalan di browser.',
+  metadataBase: new URL('https://wulang.vercel.app'),
+  title: 'Wulang - Platform Latihan Spreadsheet Bisnis',
+  description: 'Kuasai rumus Excel dan Google Sheets interaktif berbasis kasus kerja nyata.',
+  openGraph: {
+    title: 'Wulang - Spreadsheet Lab',
+    description: 'Platform latihan spreadsheet interaktif dengan 5 Pilar Modul Bisnis.',
+    images: ['/og-image.png'],
+  },
 };
 
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f1e3' },
-    { media: '(prefers-color-scheme: dark)', color: '#14162b' },
-  ],
-};
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="id">
-      <body>
-        <Header />
-        <main id="main" className="wrap">
-          {children}
-        </main>
-        <Footer />
+    <html lang="id" className="dark">
+      <body className="bg-[#0b0f19] text-slate-100 antialiased min-h-screen">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
